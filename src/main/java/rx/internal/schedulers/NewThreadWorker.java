@@ -45,6 +45,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     /** The purge frequency in milliseconds. */
     public static final int PURGE_FREQUENCY;
     private static final ConcurrentHashMap<ScheduledThreadPoolExecutor, ScheduledThreadPoolExecutor> EXECUTORS;
+//    仅仅判断是否是第一次启动？
     private static final AtomicReference<ScheduledExecutorService> PURGE;
     /**
      * Improves performance of {@link #tryEnableCancelPolicy(ScheduledExecutorService)}.
@@ -210,6 +211,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     public NewThreadWorker(ThreadFactory threadFactory) {
         ScheduledExecutorService exec = Executors.newScheduledThreadPool(1, threadFactory);
         // Java 7+: cancelled future tasks can be removed from the executor thus avoiding memory leak
+//        true 则不加入线程Map 1.7以下兼容代码
         boolean cancelSupported = tryEnableCancelPolicy(exec);
         if (!cancelSupported && exec instanceof ScheduledThreadPoolExecutor) {
             registerExecutor((ScheduledThreadPoolExecutor)exec);

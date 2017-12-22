@@ -21,6 +21,7 @@ import rx.Scheduler;
 /**
  * Schedules work on a new thread.
  */
+//每次新建一个 NewThreadWorker 同时新建一个线程池
 public final class NewThreadScheduler extends Scheduler {
     private final ThreadFactory threadFactory;
 

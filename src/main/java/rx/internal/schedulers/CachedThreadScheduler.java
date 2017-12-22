@@ -194,11 +194,12 @@ public final class CachedThreadScheduler extends Scheduler implements SchedulerL
                 // unsubscribe should be idempotent, so only do this once
 
                 // Release the worker _after_ the previous action (if any) has completed
+                System.out.println("EventLoopWorker unsubscribe!");
                 threadWorker.schedule(this);
             }
             innerSubscription.unsubscribe();
         }
-
+//解订阅的时候才会释放自己 同时释放Woker
         @Override
         public void call() {
             pool.release(threadWorker);
@@ -220,6 +221,8 @@ public final class CachedThreadScheduler extends Scheduler implements SchedulerL
                 // don't schedule, we are unsubscribed
                 return Subscriptions.unsubscribed();
             }
+
+            System.out.println("call CachedThreadScheduler EventLoopWorker schedule");
 
             ScheduledAction s = threadWorker.scheduleActual(new Action0() {
                 @Override

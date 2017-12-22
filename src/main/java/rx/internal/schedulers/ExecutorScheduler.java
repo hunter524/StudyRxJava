@@ -58,7 +58,7 @@ public final class ExecutorScheduler extends Scheduler {
             this.tasks = new CompositeSubscription();
             this.service = GenericScheduledExecutorService.getInstance();
         }
-
+//队列漏
         @Override
         public Subscription schedule(Action0 action) {
             if (isUnsubscribed()) {

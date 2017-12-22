@@ -44,6 +44,7 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
         final Worker inner = scheduler.createWorker();
 
         SubscribeOnSubscriber<T> parent = new SubscribeOnSubscriber<T>(subscriber, requestOn, inner, source);
+//        Subscriber是从下向call 实际订阅之后是从上向下 因此当前的Subscriber是上面的Parent
         subscriber.add(parent);
         subscriber.add(inner);
 

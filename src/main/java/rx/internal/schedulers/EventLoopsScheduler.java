@@ -22,7 +22,7 @@ import rx.*;
 import rx.functions.Action0;
 import rx.internal.util.*;
 import rx.subscriptions.*;
-
+//computation 的 Scheduler
 public final class EventLoopsScheduler extends Scheduler implements SchedulerLifecycle {
     /**
      * Key to setting the maximum number of computation scheduler threads.
