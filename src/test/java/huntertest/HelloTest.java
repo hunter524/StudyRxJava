@@ -3,18 +3,13 @@ package huntertest;
 import org.junit.Before;
 import org.junit.Test;
 import rx.*;
-import rx.functions.Action;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.internal.schedulers.EventLoopsScheduler;
 import rx.internal.schedulers.NewThreadWorker;
-import rx.internal.util.ActionObserver;
 import rx.observers.SerializedObserver;
-import rx.plugins.RxJavaHooks;
 import rx.schedulers.Schedulers;
 
-import java.awt.*;
 import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -29,13 +24,63 @@ import java.util.concurrent.TimeUnit;
 public class HelloTest {
 
     static Observable<String> observableJust123 = Observable.just("1","2","3");
-    static Action1<String> onNextAction = new Action1<String>() {
+    static Action1<String> onNextActionPrintThreadInfo = new Action1<String>() {
         @Override
         public void call(String s) {
-            ThreadInfoUtil.printThreadInfo("onNextAction:");
-            System.out.println("onNextAction:"+s);
+            ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
+            System.out.println("onNextActionPrintThreadInfo:"+s);
         }
     };
+
+    static Action1<String> onNextActionPrintThreadInfoAndSleep2S = new Action1<String>() {
+        @Override
+        public void call(String s) {
+            ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
+            System.out.println("onNextActionPrintThreadInfo:"+s);
+            ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+        }
+    };
+
+    static Subscriber<String> nRequestSubScriber = new Subscriber<String>() {
+        @Override
+        public void onStart() {
+            super.onStart();
+        }
+
+        @Override
+        public void onCompleted() {
+
+        }
+
+        @Override
+        public void onError(Throwable e) {
+
+        }
+
+        @Override
+        public void onNext(String s) {
+            ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
+            System.out.println("onNextActionPrintThreadInfo:"+s);
+            ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+            request(2);
+        }
+    };
+
+
+    static class MapFuncJustPrintString implements Func1<String,String>{
+        String mPrefix = "";
+
+        public MapFuncJustPrintString(String mPrefix) {
+            this.mPrefix = mPrefix;
+        }
+
+        @Override
+        public String call(String s) {
+            String result = mPrefix + s;
+            System.out.println(result);
+            return result;
+        }
+    }
 
 
     @Before
@@ -442,18 +487,18 @@ public class HelloTest {
                 return s;
             }
         });
-        sleepObservable.map(new MapFunc("map 1 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
-        sleepObservable.map(new MapFunc("map 2 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
+        sleepObservable.map(new MapFuncJustPrintString("map 1 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable.map(new MapFuncJustPrintString("map 2 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
         observableJust123.map(new Func1<String, String>() {
             @Override
             public String call(String s) {
                 return "last s";
             }
-        }).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
-        sleepObservable.map(new MapFunc("map 3 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
-        sleepObservable.map(new MapFunc("map 4 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
-        sleepObservable.map(new MapFunc("map 5 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
-        sleepObservable.map(new MapFunc("map 6 ")).subscribeOn(Schedulers.computation()).subscribe(onNextAction);
+        }).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable.map(new MapFuncJustPrintString("map 3 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable.map(new MapFuncJustPrintString("map 4 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable.map(new MapFuncJustPrintString("map 5 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable.map(new MapFuncJustPrintString("map 6 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
 
         ThreadInfoUtil.quietSleepThread(30,TimeUnit.SECONDS);
     }
@@ -472,16 +517,44 @@ public class HelloTest {
         }
     }
 
-    static class MapFunc implements Func1<String,String>{
-        String mPrefix = "";
 
-        public MapFunc(String mPrefix) {
-            this.mPrefix = mPrefix;
-        }
 
-        @Override
-        public String call(String s) {
-            return mPrefix+s;
-        }
+    @Test
+    public void testProducerAndRequest() {
+//        Observable
+//                .create(new Observable.OnSubscribe<String>() {
+//                    @Override
+//                    public void call(final Subscriber<? super String> subscriber) {
+//
+//                        subscriber.setProducer(new Producer() {
+//                            int emmitItemCount = 0;
+//                            @Override
+//                            public void request(long n) {
+//                                System.out.println("request n:"+n);
+//                                for (int i = 0; i < n; i++) {
+//                                    String emmitS = "request n:" + n + "  emmitCount:" + emmitItemCount;
+//                                    System.out.println(emmitS);
+//                                    subscriber.onNext(emmitS);
+//                                    emmitItemCount++;
+//                                }
+//                            }
+//                        });
+//                    }
+//                })
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(Schedulers.computation())
+//                .subscribe(nRequestSubScriber);
+        Observable
+                .range(1, 200)
+                .map(new Func1<Integer, String>() {
+                    @Override
+                    public String call(Integer integer) {
+                        return Integer.toString(integer);
+                    }
+                })
+                .map(new MapFuncJustPrintString("map:"))
+                .subscribeOn(Schedulers.io()).observeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfoAndSleep2S);
+
+        ThreadInfoUtil.quietSleepThread(30,TimeUnit.SECONDS);
     }
 }
