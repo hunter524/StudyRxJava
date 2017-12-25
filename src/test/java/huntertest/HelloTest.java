@@ -2,11 +2,15 @@ package huntertest;
 
 import org.junit.Before;
 import org.junit.Test;
-import rx.*;
+import rx.Observable;
+import rx.Observer;
+import rx.Subscriber;
+import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
 import rx.internal.schedulers.NewThreadWorker;
+import rx.observables.SyncOnSubscribe;
 import rx.observers.SerializedObserver;
 import rx.schedulers.Schedulers;
 
@@ -23,12 +27,12 @@ import java.util.concurrent.TimeUnit;
 
 public class HelloTest {
 
-    static Observable<String> observableJust123 = Observable.just("1","2","3");
+    static Observable<String> observableJust123 = Observable.just("1", "2", "3");
     static Action1<String> onNextActionPrintThreadInfo = new Action1<String>() {
         @Override
         public void call(String s) {
             ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
-            System.out.println("onNextActionPrintThreadInfo:"+s);
+            System.out.println("onNextActionPrintThreadInfo:" + s);
         }
     };
 
@@ -36,8 +40,8 @@ public class HelloTest {
         @Override
         public void call(String s) {
             ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
-            System.out.println("onNextActionPrintThreadInfo:"+s);
-            ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+            System.out.println("onNextActionPrintThreadInfo:" + s);
+            ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
         }
     };
 
@@ -60,14 +64,14 @@ public class HelloTest {
         @Override
         public void onNext(String s) {
             ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
-            System.out.println("onNextActionPrintThreadInfo:"+s);
-            ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+            System.out.println("onNextActionPrintThreadInfo:" + s);
+            ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
             request(2);
         }
     };
 
 
-    static class MapFuncJustPrintString implements Func1<String,String>{
+    static class MapFuncJustPrintString implements Func1<String, String> {
         String mPrefix = "";
 
         public MapFuncJustPrintString(String mPrefix) {
@@ -84,7 +88,7 @@ public class HelloTest {
 
 
     @Before
-    public void configRxjava(){
+    public void configRxjava() {
 //        设置start hook
 //        RxJavaHooks.setOnObservableStart(new Func2<Observable, Observable.OnSubscribe, Observable.OnSubscribe>() {
 //            private int callTimes = 0;
@@ -107,10 +111,10 @@ public class HelloTest {
     public void analysisJustCallFlow() {
         int sum = 0;
         int month = 5275;
-        for(int i=1;i<=12;i++){
-            sum = sum+month*i;
+        for (int i = 1; i <= 12; i++) {
+            sum = sum + month * i;
         }
-        System.out.println(sum/12*15);
+        System.out.println(sum / 12 * 15);
     }
 
     @Test
@@ -142,13 +146,13 @@ public class HelloTest {
                 System.out.println("onNext :" + s);
             }
         };
-         Subscription subscription = Observable
+        Subscription subscription = Observable
                 .create(new Observable.OnSubscribe<String>() {
                     @Override
                     public void call(Subscriber<? super String> subscriber) {
                         System.out.println();
                         System.out.println("============================");
-                        ClassUtil.printClassName(subscriber,"subscriber @@@  "+subscriber);
+                        ClassUtil.printClassName(subscriber, "subscriber @@@  " + subscriber);
 
                         ThreadInfoUtil.printThreadInfo("call");
                         ClassUtil.printClassName(subscriber);
@@ -169,21 +173,25 @@ public class HelloTest {
 //                    }
 //                })
                 .subscribe(subscriber);
-        ClassUtil.printClassName(subscription,"subscription @@@"+subscription);
+        ClassUtil.printClassName(subscription, "subscription @@@" + subscription);
         ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
     }
 
     @Test
-    public void testUnSubscribeMapChain(){
+    public void testUnSubscribeMapChain() {
         final Observable<String> mapChain = Observable
                 .create(new Observable.OnSubscribe<String>() {
                     @Override
                     public void call(Subscriber<? super String> subscriber) {
-                        for (int i=0;i<10;i++){
-                            subscriber.onNext("create:"+i);
-                            System.out.println("isInterrupted:"+Thread.currentThread().isInterrupted());
-                            if (!Thread.currentThread().isInterrupted()){
-                                ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+                        for (int i = 0; i < 10; i++) {
+                            subscriber.onNext("create:" + i);
+                            System.out.println("isInterrupted:" + Thread
+                                    .currentThread()
+                                    .isInterrupted());
+                            if (!Thread
+                                    .currentThread()
+                                    .isInterrupted()) {
+                                ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
                             }
                         }
                         subscriber.onCompleted();
@@ -192,19 +200,19 @@ public class HelloTest {
                 .map(new Func1<String, String>() {
                     @Override
                     public String call(String s) {
-                        System.out.println("map func 1 "+s);
+                        System.out.println("map func 1 " + s);
                         return s;
                     }
                 })
                 .map(new Func1<String, String>() {
                     @Override
                     public String call(String s) {
-                        System.out.println("map func 2 "+s);
+                        System.out.println("map func 2 " + s);
                         return s;
                     }
                 });
         final Subscription[] subscription = new Subscription[1];
-        new Thread(){
+        new Thread() {
             @Override
             public void run() {
                 Subscriber<String> subscriber = new Subscriber<String>() {
@@ -223,139 +231,161 @@ public class HelloTest {
                         System.out.println("onNext：" + s);
                     }
                 };
-                subscription[0] = mapChain.subscribeOn(Schedulers.io()).subscribe(subscriber);
+                subscription[0] = mapChain
+                        .subscribeOn(Schedulers.io())
+                        .subscribe(subscriber);
                 String arrayDeepStr = Arrays.deepToString(subscription);
-                System.out.println("arrayDeepStr:"+arrayDeepStr);
+                System.out.println("arrayDeepStr:" + arrayDeepStr);
 //                持有的是包装完的SafeSubscriber
-                ClassUtil.printClassName(subscription[0],"subscription@@@@@"+subscription[0]);
-                ClassUtil.printClassName(subscriber,"subscriber@@@@@"+subscriber);
+                ClassUtil.printClassName(subscription[0], "subscription@@@@@" + subscription[0]);
+                ClassUtil.printClassName(subscriber, "subscriber@@@@@" + subscriber);
             }
         }.start();
 
-        new Thread(){
+        new Thread() {
             @Override
             public void run() {
-                ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+                ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
                 subscription[0].unsubscribe();
             }
         }.start();
 
-        ThreadInfoUtil.quietSleepThread(10,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(10, TimeUnit.SECONDS);
     }
 
     @Test
-    public void analyseFlatMapOperator(){
-        Observable.just("1","2").flatMap(new Func1<String, Observable<?>>() {
-            @Override
-            public Observable<String> call(String s) {
-                List<String> string1 = Arrays.asList("11", "12", "13");
-                List<String> string2 = Arrays.asList("21", "22", "23");
-                if ("1".equals(s)){
-                    return Observable.from(string1);
-                }
-                else {
-                    return Observable.from(string2);
-                }
+    public void analyseFlatMapOperator() {
+        Observable
+                .just("1", "2")
+                .flatMap(new Func1<String, Observable<?>>() {
+                    @Override
+                    public Observable<String> call(String s) {
+                        List<String> string1 = Arrays.asList("11", "12", "13");
+                        List<String> string2 = Arrays.asList("21", "22", "23");
+                        if ("1".equals(s)) {
+                            return Observable.from(string1);
+                        } else {
+                            return Observable.from(string2);
+                        }
 
-            }
-        }).doOnNext(new Action1<Object>() {
-            @Override
-            public void call(Object o) {
-                System.out.println("doOnNext:"+o);
-            }
-        }).subscribe(new Observer<Object>() {
-            @Override
-            public void onCompleted() {
-
-            }
-
-            @Override
-            public void onError(Throwable e) {
-
-            }
-
-            @Override
-            public void onNext(Object o) {
-                System.out.println("Observer onNext"+o);
-            }
-        });
-    }
-
-    @Test
-    public void testMerge(){
-        Observable.just("1").mergeWith(Observable.just("2")).subscribe(new Action1<String>() {
-            @Override
-            public void call(String s) {
-                System.out.println("merge with call onNext:"+s);
-            }
-        });
-
-        Observable.merge(Observable.just(1),Observable.just("1")).subscribe(new Action1<Serializable>() {
-            @Override
-            public void call(Serializable serializable) {
-                System.out.println(serializable.getClass().getCanonicalName());
-            }
-        });
-
-        Observable.zip(Observable.just(1), Observable.just("1"), new Func2<Integer, String, String>() {
-            @Override
-            public String call(Integer integer, String s) {
-                return "S:"+s+"I:"+integer.toString();
-            }
-        }).subscribe(new Action1<String>() {
-            @Override
-            public void call(String s) {
-                System.out.println("Action call:"+s);
-            }
-        });
-    }
-
-    @Test
-    public void ananlyseProducer(){
-        Observable.range(1,2000000).map(new Func1<Integer, Integer>() {
-            @Override
-            public Integer call(Integer integer) {
-                System.out.println("map call :"+integer);
-                return integer;
-            }
-        }).take(2).lift(new Observable.Operator<Boolean, Integer>() {
-            @Override
-            public Subscriber<? super Integer> call(final Subscriber<? super Boolean> subscriber) {
-                return new Subscriber<Integer>() {
+                    }
+                })
+                .doOnNext(new Action1<Object>() {
+                    @Override
+                    public void call(Object o) {
+                        System.out.println("doOnNext:" + o);
+                    }
+                })
+                .subscribe(new Observer<Object>() {
                     @Override
                     public void onCompleted() {
-                        subscriber.onCompleted();
+
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        subscriber.onError(e);
+
                     }
 
                     @Override
-                    public void onNext(Integer integer) {
-                        subscriber.onNext((integer&1) == 0);
+                    public void onNext(Object o) {
+                        System.out.println("Observer onNext" + o);
                     }
-                };
-            }
-        }).take(10).subscribe(new Action1<Boolean>() {
-            @Override
-            public void call(Boolean aBoolean) {
-                System.out.println(aBoolean);
-            }
-        });
-
-        Observable.just("1").subscribe(new Action1<String>() {
-            @Override
-            public void call(String s) {
-                System.out.println(s);
-            }
-        });
+                });
     }
 
-//    为什么都在Computation这个Thread 执行订阅操作
     @Test
-    public void analyseSubscribeOnAndFlatMap(){
+    public void testMerge() {
+        Observable
+                .just("1")
+                .mergeWith(Observable.just("2"))
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String s) {
+                        System.out.println("merge with call onNext:" + s);
+                    }
+                });
+
+        Observable
+                .merge(Observable.just(1), Observable.just("1"))
+                .subscribe(new Action1<Serializable>() {
+                    @Override
+                    public void call(Serializable serializable) {
+                        System.out.println(serializable
+                                .getClass()
+                                .getCanonicalName());
+                    }
+                });
+
+        Observable
+                .zip(Observable.just(1), Observable.just("1"), new Func2<Integer, String, String>() {
+                    @Override
+                    public String call(Integer integer, String s) {
+                        return "S:" + s + "I:" + integer.toString();
+                    }
+                })
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String s) {
+                        System.out.println("Action call:" + s);
+                    }
+                });
+    }
+
+    @Test
+    public void ananlyseProducer() {
+        Observable
+                .range(1, 2000000)
+                .map(new Func1<Integer, Integer>() {
+                    @Override
+                    public Integer call(Integer integer) {
+                        System.out.println("map call :" + integer);
+                        return integer;
+                    }
+                })
+                .take(2)
+                .lift(new Observable.Operator<Boolean, Integer>() {
+                    @Override
+                    public Subscriber<? super Integer> call(final Subscriber<? super Boolean> subscriber) {
+                        return new Subscriber<Integer>() {
+                            @Override
+                            public void onCompleted() {
+                                subscriber.onCompleted();
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                subscriber.onError(e);
+                            }
+
+                            @Override
+                            public void onNext(Integer integer) {
+                                subscriber.onNext((integer & 1) == 0);
+                            }
+                        };
+                    }
+                })
+                .take(10)
+                .subscribe(new Action1<Boolean>() {
+                    @Override
+                    public void call(Boolean aBoolean) {
+                        System.out.println(aBoolean);
+                    }
+                });
+
+        Observable
+                .just("1")
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String s) {
+                        System.out.println(s);
+                    }
+                });
+    }
+
+    //    为什么都在Computation这个Thread 执行订阅操作
+    @Test
+    public void analyseSubscribeOnAndFlatMap() {
 //        第一次打印之后 sleep 20s 测试 发射者循环始终在一个线程中（处于线程1中执行 2 的发射操作）
         Subscriber<String> subscriber = new Subscriber<String>() {
             boolean alreadySleep = false;
@@ -372,9 +402,9 @@ public class HelloTest {
 
             @Override
             public void onNext(String s) {
-                ThreadInfoUtil.printThreadInfo("Observer s is :" + s+"  Observer Thread is:");
-                if (!alreadySleep){
-                    ThreadInfoUtil.quietSleepThread(20,TimeUnit.SECONDS);
+                ThreadInfoUtil.printThreadInfo("Observer s is :" + s + "  Observer Thread is:");
+                if (!alreadySleep) {
+                    ThreadInfoUtil.quietSleepThread(20, TimeUnit.SECONDS);
                     alreadySleep = true;
                 }
                 System.out.println();
@@ -382,44 +412,47 @@ public class HelloTest {
         };
 
 
-        Observable.just("1","2").flatMap(new Func1<String, Observable<String>>() {
-            @Override
-            public Observable<String> call(final String s) {
-                if ("1".equals(s)){
-                    return Observable
-                            .interval(1, TimeUnit.SECONDS)
-                            .map(new Func1<Long, String>() {
-                                @Override
-                                public String call(Long aLong) {
-                                    ThreadInfoUtil.printThreadInfo("1 map Thread is:");
-                                    System.out.println();
-                                    return "1 map origin S is:"+s+"time is :"+aLong;
-                                }
-                            })
+        Observable
+                .just("1", "2")
+                .flatMap(new Func1<String, Observable<String>>() {
+                    @Override
+                    public Observable<String> call(final String s) {
+                        if ("1".equals(s)) {
+                            return Observable
+                                    .interval(1, TimeUnit.SECONDS)
+                                    .map(new Func1<Long, String>() {
+                                        @Override
+                                        public String call(Long aLong) {
+                                            ThreadInfoUtil.printThreadInfo("1 map Thread is:");
+                                            System.out.println();
+                                            return "1 map origin S is:" + s + "time is :" + aLong;
+                                        }
+                                    })
 //                            .take(20)
-                            .subscribeOn(Schedulers.io());
-                }
-                else {
-                    return Observable
-                            .interval(1, TimeUnit.SECONDS)
-                            .map(new Func1<Long, String>() {
-                                @Override
-                                public String call(Long aLong) {
-                                    ThreadInfoUtil.printThreadInfo("2 map Thread is:");
-                                    System.out.println();
-                                    return "2 map origin S is:"+s+"time is :"+aLong;                                }
-                            })
+                                    .subscribeOn(Schedulers.io());
+                        } else {
+                            return Observable
+                                    .interval(1, TimeUnit.SECONDS)
+                                    .map(new Func1<Long, String>() {
+                                        @Override
+                                        public String call(Long aLong) {
+                                            ThreadInfoUtil.printThreadInfo("2 map Thread is:");
+                                            System.out.println();
+                                            return "2 map origin S is:" + s + "time is :" + aLong;
+                                        }
+                                    })
 //                            .take(20)
-                            .subscribeOn(Schedulers.io());
-                }
-            }
-        }).subscribe(new SerializedObserver<String>(subscriber));
+                                    .subscribeOn(Schedulers.io());
+                        }
+                    }
+                })
+                .subscribe(new SerializedObserver<String>(subscriber));
 //        阻止测试主线程退出
-        ThreadInfoUtil.quietSleepThread(30,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(30, TimeUnit.SECONDS);
     }
 
     @Test
-    public void getProperties(){
+    public void getProperties() {
         Collection<Object> values = System
                 .getProperties()
                 .values();
@@ -430,14 +463,14 @@ public class HelloTest {
     }
 
     @Test
-    public void ananlyseThreadPool(){
+    public void ananlyseThreadPool() {
         Observable<String> stringObservable = Observable.create(new Observable.OnSubscribe<String>() {
             @Override
             public void call(Subscriber<? super String> subscriber) {
                 subscriber.onNext("11111");
 //                ThreadInfoUtil.quietSleepThread(10,TimeUnit.SECONDS);
                 int i = 0;
-                while (i<10){
+                while (i < 10) {
                     subscriber.onNext("11111");
                     System.out.println("11111");
                     i++;
@@ -450,23 +483,33 @@ public class HelloTest {
             public void call(String s) {
             }
         };
-        stringObservable.subscribeOn(Schedulers.io()).subscribe(onNext);
-        stringObservable.subscribeOn(Schedulers.io()).subscribe(onNext);
-        stringObservable.subscribeOn(Schedulers.io()).subscribe(onNext);
-        stringObservable.subscribeOn(Schedulers.io()).observeOn(Schedulers.computation()).map(new Func1<String, String>() {
-            @Override
-            public String call(String s) {
-                ThreadInfoUtil.printThreadInfo("Map:");
-                ThreadInfoUtil.quietSleepThread(10,TimeUnit.SECONDS);
-                return s;
-            }
-        }).subscribe(onNext);
+        stringObservable
+                .subscribeOn(Schedulers.io())
+                .subscribe(onNext);
+        stringObservable
+                .subscribeOn(Schedulers.io())
+                .subscribe(onNext);
+        stringObservable
+                .subscribeOn(Schedulers.io())
+                .subscribe(onNext);
+        stringObservable
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.computation())
+                .map(new Func1<String, String>() {
+                    @Override
+                    public String call(String s) {
+                        ThreadInfoUtil.printThreadInfo("Map:");
+                        ThreadInfoUtil.quietSleepThread(10, TimeUnit.SECONDS);
+                        return s;
+                    }
+                })
+                .subscribe(onNext);
         Field executors = ClassUtil.quietGetField(NewThreadWorker.class, "EXECUTORS");
-        if (null != executors){
-            ConcurrentHashMap<ScheduledThreadPoolExecutor, ScheduledThreadPoolExecutor> inMapExecutors =  ClassUtil.quietGetValue(null, executors);
-            System.out.println("NewThreadWorker executors size:"+inMapExecutors.size());
+        if (null != executors) {
+            ConcurrentHashMap<ScheduledThreadPoolExecutor, ScheduledThreadPoolExecutor> inMapExecutors = ClassUtil.quietGetValue(null, executors);
+            System.out.println("NewThreadWorker executors size:" + inMapExecutors.size());
         }
-        ThreadInfoUtil.quietSleepThread(100,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(100, TimeUnit.SECONDS);
     }
 
     /**
@@ -475,44 +518,67 @@ public class HelloTest {
      * {@link rx.internal.schedulers.EventLoopsScheduler}
      */
     @Test
-    public void analyseComputeScheduler(){
+    public void analyseComputeScheduler() {
         int processors = Runtime
                 .getRuntime()
                 .availableProcessors();
-        System.out.println("processors :"+processors);
+        System.out.println("processors :" + processors);
         Observable<String> sleepObservable = observableJust123.map(new Func1<String, String>() {
             @Override
             public String call(String s) {
-                ThreadInfoUtil.quietSleepThread(10,TimeUnit.SECONDS);
+                ThreadInfoUtil.quietSleepThread(10, TimeUnit.SECONDS);
                 return s;
             }
         });
-        sleepObservable.map(new MapFuncJustPrintString("map 1 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        sleepObservable.map(new MapFuncJustPrintString("map 2 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        observableJust123.map(new Func1<String, String>() {
-            @Override
-            public String call(String s) {
-                return "last s";
-            }
-        }).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        sleepObservable.map(new MapFuncJustPrintString("map 3 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        sleepObservable.map(new MapFuncJustPrintString("map 4 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        sleepObservable.map(new MapFuncJustPrintString("map 5 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
-        sleepObservable.map(new MapFuncJustPrintString("map 6 ")).subscribeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 1 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 2 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        observableJust123
+                .map(new Func1<String, String>() {
+                    @Override
+                    public String call(String s) {
+                        return "last s";
+                    }
+                })
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 3 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 4 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 5 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
+        sleepObservable
+                .map(new MapFuncJustPrintString("map 6 "))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(onNextActionPrintThreadInfo);
 
-        ThreadInfoUtil.quietSleepThread(30,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(30, TimeUnit.SECONDS);
     }
 
 
-
-
     @Test
-    public void rename(){
+    public void rename() {
         File file = new File("/home/hunter/文档/鹏华");
         File[] files = file.listFiles();
         for (File imgFile : files) {
-            if (imgFile.getName().endsWith(".jpg")){
-                imgFile.renameTo(new File(imgFile.getAbsolutePath().replace(".jpg",".png")));
+            if (imgFile
+                    .getName()
+                    .endsWith(".jpg")) {
+                imgFile.renameTo(new File(imgFile
+                        .getAbsolutePath()
+                        .replace(".jpg", ".png")));
             }
         }
     }
@@ -521,6 +587,7 @@ public class HelloTest {
 
     @Test
     public void testProducerAndRequest() {
+        // TODO: 17-12-25 request 和Producer的流程依旧没有分析通透
 //        Observable
 //                .create(new Observable.OnSubscribe<String>() {
 //                    @Override
@@ -544,17 +611,144 @@ public class HelloTest {
 //                .subscribeOn(Schedulers.io())
 //                .observeOn(Schedulers.computation())
 //                .subscribe(nRequestSubScriber);
+
         Observable
-                .range(1, 200)
-                .map(new Func1<Integer, String>() {
+                .create(new SyncOnSubscribe<Integer, String>() {
+                    //            初始化的状态值
                     @Override
-                    public String call(Integer integer) {
-                        return Integer.toString(integer);
+                    protected Integer generateState() {
+                        return 0;
+                    }
+
+                    //每次迭代完成之后产生新的状态值 并且更新状态值
+                    @Override
+                    protected Integer next(Integer state, Observer<? super String> observer) {
+                        String nextValue = "Next From Producer: " + Integer.toString(state);
+                        System.out.println(nextValue);
+                        observer.onNext(nextValue);
+                        Integer integer = ++state;
+                        return integer;
                     }
                 })
-                .map(new MapFuncJustPrintString("map:"))
-                .subscribeOn(Schedulers.io()).observeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfoAndSleep2S);
+                .subscribeOn(Schedulers.computation())
+//                observeOn操作符 默认每次请求128个数据进行缓冲
+                .observeOn(Schedulers.io(),1)
+                .subscribe(new Subscriber<String>() {
+                    int lastRequested = 1;
+                    int exhausted = 0;
 
-        ThreadInfoUtil.quietSleepThread(30,TimeUnit.SECONDS);
+                    @Override
+                    public void onStart() {
+                        super.onStart();
+//                        request(lastRequested);
+//                        exhausted = 0;
+                    }
+
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(String s) {
+                        System.out.println("onNext:  " + s);
+                        ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
+                        exhausted++;
+                        if (exhausted == lastRequested) {
+                            lastRequested = lastRequested * 2;
+                            exhausted = 0;
+                            request(lastRequested);
+                        }
+                    }
+                });
+
+//        Observable
+//                .range(1, 200)
+//                .map(new Func1<Integer, String>() {
+//                    @Override
+//                    public String call(Integer integer) {
+//                        return Integer.toString(integer);
+//                    }
+//                })
+//                .map(new MapFuncJustPrintString("map:"))
+//                .subscribeOn(Schedulers.io()).observeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfoAndSleep2S);
+
+        ThreadInfoUtil.quietSleepThread(30, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void ananlyseLiftAndUnSubscribe(){
+        final Observable.Operator<String, Integer> int2StringOpWithOutUnSubscribe = new Observable.Operator<String, Integer>() {
+
+            @Override
+            public Subscriber<? super Integer> call(final Subscriber<? super String> subscriber) {
+                return new Subscriber<Integer>() {
+                    @Override
+                    public void onCompleted() {
+                        subscriber.onCompleted();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        subscriber.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        System.out.println("call int2StringOp onNext:" +Integer.toString(integer));
+                        subscriber.onNext(Integer.toString(integer));
+                    }
+                };
+            }
+        };
+
+        final Observable.Operator<String, Integer> int2StringOpWithUnSubscribe = new Observable.Operator<String, Integer>() {
+
+            @Override
+            public Subscriber<? super Integer> call(final Subscriber<? super String> subscriber) {
+//                返回的 Subscriber 传入 下游的订阅关系
+//                解注册时是从下游向上游解注册 则该订阅关系并不会丢失 从而可以使上游进行订阅关系的解注册
+                return new Subscriber<Integer>(subscriber) {
+                    @Override
+                    public void onCompleted() {
+                       subscriber.onCompleted();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        subscriber.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        System.out.println("call int2StringOp onNext:" +Integer.toString(integer));
+                        subscriber.onNext(Integer.toString(integer));
+                    }
+                };
+            }
+        };
+
+//        take 的解订阅操作并没有传递到上一层 lift上游的操作符 依旧在发射数据
+        Observable
+                .range(0, 200)
+                .map(new Func1<Integer, Integer>() {
+                    @Override
+                    public Integer call(Integer integer) {
+                        System.out.println("I am in the up of lift int2String :" + integer);
+                        return integer;
+                    }
+                })
+                .lift(int2StringOpWithUnSubscribe)
+                .map(new MapFuncJustPrintString("Lift Map: "))
+                .take(2)
+                .subscribeOn(Schedulers.computation())
+                .observeOn(Schedulers.io())
+                .subscribe(onNextActionPrintThreadInfo);
+        ThreadInfoUtil.quietSleepThread(20,TimeUnit.SECONDS);
     }
 }

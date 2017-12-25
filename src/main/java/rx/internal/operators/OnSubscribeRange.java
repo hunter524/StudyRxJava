@@ -37,7 +37,8 @@ public final class OnSubscribeRange implements OnSubscribe<Integer> {
     public void call(final Subscriber<? super Integer> childSubscriber) {
         childSubscriber.setProducer(new RangeProducer(childSubscriber, startIndex, endIndex));
     }
-
+//继承AtomicLong的RangeProducer 相比组合AtomicLong 减少24字节的内存占用 8B引用地址 4B垃圾回收信息 4B同步信息
+//对象占用空间最少为n *8B 的空间
     static final class RangeProducer extends AtomicLong implements Producer {
         /** */
         private static final long serialVersionUID = 4114392207069098388L;
@@ -62,6 +63,7 @@ public final class OnSubscribeRange implements OnSubscribe<Integer> {
                 // fast-path without backpressure
                 fastPath();
             } else if (requestedAmount > 0L) {
+//                CAS操作保证原子更新 请求数据的个数
                 long c = BackpressureUtils.getAndAddRequest(this, requestedAmount);
                 if (c == 0L) {
                     // backpressure is requested
