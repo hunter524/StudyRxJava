@@ -27,17 +27,19 @@ import rx.plugins.RxJavaHooks;
  * @param <T> the source value type
  * @param <R> the result value type
  */
+//Lift转换Operator操作
 public final class OnSubscribeLift<T, R> implements OnSubscribe<R> {
 
     final OnSubscribe<T> parent;
 
     final Operator<? extends R, ? super T> operator;
-
+//上游链的调用者是Parent
     public OnSubscribeLift(OnSubscribe<T> parent, Operator<? extends R, ? super T> operator) {
         this.parent = parent;
         this.operator = operator;
     }
-
+//订阅之后向上游回溯call 因此传入的是下游的Subscriber
+//该OnSubscribexxx 获取Operator转换后的Subscriber交给上游调用
     @Override
     public void call(Subscriber<? super R> o) {
         try {

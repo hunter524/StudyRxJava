@@ -42,10 +42,10 @@ public final class OnSubscribeMap<T, R> implements OnSubscribe<R> {
     }
 
     @Override
-    public void call(final Subscriber<? super R> o) {
+    public void call(final Subscriber<? super R> o/*下游订阅者*/) {
         MapSubscriber<T, R> parent = new MapSubscriber<T, R>(o, transformer);
-        o.add(parent);
-        source.unsafeSubscribe(parent);
+        /*下游订阅者的上游*/o.add(parent);
+        /*当前Observable*/source.unsafeSubscribe(parent/*当前Observable的订阅者*/);
     }
 
     static final class MapSubscriber<T, R> extends Subscriber<T> {

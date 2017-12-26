@@ -12,15 +12,13 @@ import rx.functions.Func2;
 import rx.internal.schedulers.NewThreadWorker;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.SerializedObserver;
+import rx.plugins.RxJavaHooks;
 import rx.schedulers.Schedulers;
 
 import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -105,6 +103,16 @@ public class HelloTest {
 
 //        设置Computation的Scheduler的最大线程数量（没有地方可以设置最大的Computation的线程数量）
 //        System.getProperties().setProperty(EventLoopsScheduler.)
+        RxJavaHooks.setOnObservableSubscribeError(new Func1<Throwable, Throwable>() {
+            @Override
+            public Throwable call(Throwable throwable) {
+                Throwable stackTrace = new Throwable();
+                System.out.println("=====================call onError Hook=======================");
+                stackTrace.printStackTrace();
+                System.out.println("=====================call onError Hook=======================");
+                return throwable;
+            }
+        });
     }
 
     @Test
@@ -584,7 +592,6 @@ public class HelloTest {
     }
 
 
-
     @Test
     public void testProducerAndRequest() {
         // TODO: 17-12-25 request 和Producer的流程依旧没有分析通透
@@ -632,7 +639,7 @@ public class HelloTest {
                 })
                 .subscribeOn(Schedulers.computation())
 //                observeOn操作符 默认每次请求128个数据进行缓冲
-                .observeOn(Schedulers.io(),1)
+                .observeOn(Schedulers.io(), 1)
                 .subscribe(new Subscriber<String>() {
                     int lastRequested = 1;
                     int exhausted = 0;
@@ -682,7 +689,7 @@ public class HelloTest {
     }
 
     @Test
-    public void ananlyseLiftAndUnSubscribe(){
+    public void ananlyseLiftAndUnSubscribe() {
         final Observable.Operator<String, Integer> int2StringOpWithOutUnSubscribe = new Observable.Operator<String, Integer>() {
 
             @Override
@@ -700,7 +707,7 @@ public class HelloTest {
 
                     @Override
                     public void onNext(Integer integer) {
-                        System.out.println("call int2StringOp onNext:" +Integer.toString(integer));
+                        System.out.println("call int2StringOp onNext:" + Integer.toString(integer));
                         subscriber.onNext(Integer.toString(integer));
                     }
                 };
@@ -710,13 +717,13 @@ public class HelloTest {
         final Observable.Operator<String, Integer> int2StringOpWithUnSubscribe = new Observable.Operator<String, Integer>() {
 
             @Override
-            public Subscriber<? super Integer> call(final Subscriber<? super String> subscriber) {
+            public/*返回给上游的观察者*/ Subscriber<? super Integer> call(final Subscriber<? super String> subscriber/*下游观察者*/) {
 //                返回的 Subscriber 传入 下游的订阅关系
 //                解注册时是从下游向上游解注册 则该订阅关系并不会丢失 从而可以使上游进行订阅关系的解注册
                 return new Subscriber<Integer>(subscriber) {
                     @Override
                     public void onCompleted() {
-                       subscriber.onCompleted();
+                        subscriber.onCompleted();
                     }
 
                     @Override
@@ -726,7 +733,7 @@ public class HelloTest {
 
                     @Override
                     public void onNext(Integer integer) {
-                        System.out.println("call int2StringOp onNext:" +Integer.toString(integer));
+                        System.out.println("call int2StringOp onNext:" + Integer.toString(integer));
                         subscriber.onNext(Integer.toString(integer));
                     }
                 };
@@ -749,6 +756,146 @@ public class HelloTest {
                 .subscribeOn(Schedulers.computation())
                 .observeOn(Schedulers.io())
                 .subscribe(onNextActionPrintThreadInfo);
-        ThreadInfoUtil.quietSleepThread(20,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(20, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void analyseForgetToRequestMore() {
+        Observable.Operator<Integer, Integer> evenFilter = new Observable.Operator<Integer, Integer>() {
+            //承接上下游数据转换的任务
+            @Override
+            public Subscriber<? super Integer> call(final Subscriber<? super Integer> subscriber) {
+                return new Subscriber<Integer>(subscriber/*
+                 1、如果该处订阅关系没有建立
+                 则上游无法取消订阅
+                 依旧会发送两个数据 同时调用下游
+                 2、如果该处订阅关系建立，同时下游take 了指定数据，忘记request更多数据则会导致无数据
+
+                */) {
+                    @Override
+                    public void onCompleted() {
+                        subscriber.onCompleted();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        /*中间订阅者如果不透传调用下游订阅者的 onError则下游始终收不到onError回调*/
+//                        e.printStackTrace();
+                        // TODO: 17-12-26 为什么此处调用完onError整个调用链就解除注册了？
+                        System.out.println("lift onError!");
+//                        subscriber.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        if ((integer & 0x1) == 0) {
+                            subscriber.onNext(integer);
+                        } else {
+                            request(1);/*如果订阅关系（取消订阅的关系）建立但是遗漏继续request则只获得一个数据*/
+                        }
+                    }
+                };
+            }
+        };
+
+        Observable.Operator<Integer, Integer> intPrintOperator = new Observable.Operator<Integer, Integer>() {
+
+            @Override
+            public Subscriber<? super Integer> call(final Subscriber<? super Integer> subscriber) {
+                return new Subscriber<Integer>() {
+                    @Override
+                    public void onCompleted() {
+                        subscriber.onCompleted();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        subscriber.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        System.out.println("lift Print:"+integer);
+                        if (integer == 1){
+                            throw new IllegalArgumentException("test throw chain!");
+                        }
+                        subscriber.onNext(integer);
+                    }
+                };
+            }
+        };
+        Observable
+                .range(1, 2)
+                /*map 会解除上游的注册不再发送*/
+/*                .map(new Func1<Integer, Integer>() {
+                    @Override
+                    public Integer call(Integer integer) {
+                        if (integer == 1){
+                            throw new IllegalArgumentException("test throw!");
+                        }
+                        return integer;
+                    }
+                })*/
+                .lift(intPrintOperator)
+                .lift(evenFilter)
+//                .take(1)
+                .unsafeSubscribe(new Subscriber<Integer>() {
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("onCompleted");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                        System.out.println("tail onError!");
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        System.out.println("onNext Integer: " + integer);
+                    }
+                });
+    }
+
+
+    @Test
+    public void numOverFlow() {
+        int maxValue = Integer.MAX_VALUE;
+        int x = ++maxValue;
+        System.out.println(x);
+        System.out.println(Integer.toBinaryString(x));
+    }
+
+    //=======================main 方法===============================
+    public static void main(String[] args) {
+        final UnsafeClass unsafeClass = new UnsafeClass();
+        new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    ++unsafeClass.n;
+                }
+            }
+        }.start();
+        new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    unsafeClass.assertsN();
+                }
+            }
+        }.start();
+       Collections.synchronizedList(new ArrayList<String>());
+    }
+
+    static class UnsafeClass {
+        public int n;
+
+        public void assertsN() {
+            if (n != n) {
+                throw new IllegalStateException("n !- n");
+            }
+        }
     }
 }
