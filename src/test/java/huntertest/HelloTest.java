@@ -1,23 +1,32 @@
 package huntertest;
 
+import huntertest.util.ClassUtil;
+import huntertest.util.ThreadInfoUtil;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import rx.*;
 import rx.Observable;
 import rx.Observer;
-import rx.Subscriber;
-import rx.Subscription;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.internal.producers.SingleDelayedProducer;
 import rx.internal.schedulers.NewThreadWorker;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.SerializedObserver;
+import rx.observers.TestSubscriber;
 import rx.plugins.RxJavaHooks;
 import rx.schedulers.Schedulers;
 
 import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -44,9 +53,12 @@ public class HelloTest {
     };
 
     static Subscriber<String> nRequestSubScriber = new Subscriber<String>() {
+        int lastRequest = 1;
+        int onNextTimeEveryRequest = 0;
+
         @Override
         public void onStart() {
-            super.onStart();
+            request(lastRequest);
         }
 
         @Override
@@ -63,8 +75,23 @@ public class HelloTest {
         public void onNext(String s) {
             ThreadInfoUtil.printThreadInfo("onNextActionPrintThreadInfo:");
             System.out.println("onNextActionPrintThreadInfo:" + s);
-            ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
-            request(2);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String formatTime = simpleDateFormat.format(Calendar
+                    .getInstance()
+                    .getTime());
+            System.out.println(formatTime);
+            ++onNextTimeEveryRequest;
+            if (onNextTimeEveryRequest == lastRequest){
+                formatTime = simpleDateFormat.format(Calendar.getInstance().getTime());
+                System.out.println("sleep start Time:"+formatTime);
+                ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
+                formatTime = simpleDateFormat.format(Calendar.getInstance().getTime());
+                System.out.println("sleep end Time:"+formatTime);
+                onNextTimeEveryRequest = 0;
+//                如果不request则这条调用链则很快会结束
+                request(++lastRequest);
+            }
+
         }
     };
 
@@ -324,7 +351,7 @@ public class HelloTest {
                                 .getCanonicalName());
                     }
                 });
-
+//zip是压缩成一个
         Observable
                 .zip(Observable.just(1), Observable.just("1"), new Func2<Integer, String, String>() {
                     @Override
@@ -336,6 +363,15 @@ public class HelloTest {
                     @Override
                     public void call(String s) {
                         System.out.println("Action call:" + s);
+                    }
+                });
+//merge是合并相同的元素之后 发射它们共同的父类
+        Observable
+                .merge(Observable.just(BigDecimal.valueOf(200)), Observable.just(BigInteger.valueOf(300)))
+                .subscribe(new Action1<Number>() {
+                    @Override
+                    public void call(Number number) {
+
                     }
                 });
     }
@@ -595,84 +631,82 @@ public class HelloTest {
     @Test
     public void testProducerAndRequest() {
         // TODO: 17-12-25 request 和Producer的流程依旧没有分析通透
-//        Observable
-//                .create(new Observable.OnSubscribe<String>() {
-//                    @Override
-//                    public void call(final Subscriber<? super String> subscriber) {
-//
-//                        subscriber.setProducer(new Producer() {
-//                            int emmitItemCount = 0;
-//                            @Override
-//                            public void request(long n) {
-//                                System.out.println("request n:"+n);
-//                                for (int i = 0; i < n; i++) {
-//                                    String emmitS = "request n:" + n + "  emmitCount:" + emmitItemCount;
-//                                    System.out.println(emmitS);
-//                                    subscriber.onNext(emmitS);
-//                                    emmitItemCount++;
-//                                }
-//                            }
-//                        });
-//                    }
-//                })
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(Schedulers.computation())
-//                .subscribe(nRequestSubScriber);
-
         Observable
-                .create(new SyncOnSubscribe<Integer, String>() {
-                    //            初始化的状态值
+                .create(new Observable.OnSubscribe<String>() {
                     @Override
-                    protected Integer generateState() {
-                        return 0;
-                    }
+                    public void call(final Subscriber<? super String> subscriber) {
 
-                    //每次迭代完成之后产生新的状态值 并且更新状态值
-                    @Override
-                    protected Integer next(Integer state, Observer<? super String> observer) {
-                        String nextValue = "Next From Producer: " + Integer.toString(state);
-                        System.out.println(nextValue);
-                        observer.onNext(nextValue);
-                        Integer integer = ++state;
-                        return integer;
+                        subscriber.setProducer(new Producer() {
+                            int emmitItemCount = 0;
+                            @Override
+                            public void request(long n) {
+                                System.out.println("request n:"+n);
+                                for (int i = 0; i < n; i++) {
+                                    String emmitS = "request n:" + n + "  emmitCount:" + emmitItemCount;
+                                    System.out.println(emmitS);
+                                    subscriber.onNext(emmitS);
+                                    ++emmitItemCount;
+                                }
+                            }
+                        });
                     }
                 })
-                .subscribeOn(Schedulers.computation())
-//                observeOn操作符 默认每次请求128个数据进行缓冲
-                .observeOn(Schedulers.io(), 1)
-                .subscribe(new Subscriber<String>() {
-                    int lastRequested = 1;
-                    int exhausted = 0;
+                .subscribe(nRequestSubScriber);
 
-                    @Override
-                    public void onStart() {
-                        super.onStart();
-//                        request(lastRequested);
-//                        exhausted = 0;
-                    }
-
-                    @Override
-                    public void onCompleted() {
-
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-
-                    }
-
-                    @Override
-                    public void onNext(String s) {
-                        System.out.println("onNext:  " + s);
-                        ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
-                        exhausted++;
-                        if (exhausted == lastRequested) {
-                            lastRequested = lastRequested * 2;
-                            exhausted = 0;
-                            request(lastRequested);
-                        }
-                    }
-                });
+//        Observable
+//                .create(new SyncOnSubscribe<Integer, String>() {
+//                    //            初始化的状态值
+//                    @Override
+//                    protected Integer generateState() {
+//                        return 0;
+//                    }
+//
+//                    //每次迭代完成之后产生新的状态值 并且更新状态值
+//                    @Override
+//                    protected Integer next(Integer state, Observer<? super String> observer) {
+//                        String nextValue = "Next From Producer: " + Integer.toString(state);
+//                        System.out.println(nextValue);
+//                        observer.onNext(nextValue);
+//                        Integer integer = ++state;
+//                        return integer;
+//                    }
+//                })
+//                .subscribeOn(Schedulers.computation())
+////                observeOn操作符 默认每次请求128个数据进行缓冲
+//                .observeOn(Schedulers.io(), 1)
+//                .subscribe(new Subscriber<String>() {
+//                    int lastRequested = 1;
+//                    int exhausted = 0;
+//
+//                    @Override
+//                    public void onStart() {
+//                        super.onStart();
+////                        request(lastRequested);
+////                        exhausted = 0;
+//                    }
+//
+//                    @Override
+//                    public void onCompleted() {
+//
+//                    }
+//
+//                    @Override
+//                    public void onError(Throwable e) {
+//
+//                    }
+//
+//                    @Override
+//                    public void onNext(String s) {
+//                        System.out.println("onNext:  " + s);
+//                        ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
+//                        exhausted++;
+//                        if (exhausted == lastRequested) {
+//                            lastRequested = lastRequested * 2;
+//                            exhausted = 0;
+//                            request(lastRequested);
+//                        }
+//                    }
+//                });
 
 //        Observable
 //                .range(1, 200)
@@ -685,7 +719,7 @@ public class HelloTest {
 //                .map(new MapFuncJustPrintString("map:"))
 //                .subscribeOn(Schedulers.io()).observeOn(Schedulers.computation()).subscribe(onNextActionPrintThreadInfoAndSleep2S);
 
-        ThreadInfoUtil.quietSleepThread(30, TimeUnit.SECONDS);
+//        ThreadInfoUtil.quietSleepThread(30, TimeUnit.SECONDS);
     }
 
     @Test
@@ -858,6 +892,82 @@ public class HelloTest {
                 });
     }
 
+    /**
+     * 实际测试 requestMore 0 则 不会收到数据
+     *         requestMore 1 则 会收到1个数据
+     *
+     *         0 两次request 最后只收到一个数据
+     *         1 两个request 最后也只收到一个数据
+     *
+     * 以上结论 与 https://blog.piasy.com/AdvancedRxJava/2016/06/04/operator-concurrency-primitives-4/
+     * 不符合
+     *
+     */
+    @Test
+    public void testjustSingleProducer(){
+        Observable<String> source = Observable.just("1");
+        TestSubscriber<String> testSubscriber = new TestSubscriber<String>();
+        testSubscriber.requestMore(1);
+
+        source.unsafeSubscribe(testSubscriber);
+
+        List<String> onNextEvents = testSubscriber.getOnNextEvents();
+        String s = Arrays.deepToString(onNextEvents.toArray());
+        System.out.println(s);
+        testSubscriber.unsubscribe();
+
+        System.out.println("-----");
+
+        source.unsafeSubscribe(testSubscriber);
+        List<String> onNextEvents1 = testSubscriber.getOnNextEvents();
+        String s1 = Arrays.deepToString(onNextEvents1.toArray());
+        System.out.println(s1);
+
+        Observable<String> singleDelayObservable = Observable.create(new Observable.OnSubscribe<String>() {
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+                /*解决set数据 和 request 的竟态条件的关系 setValue 和 request（setProducer 操作）
+                 处于两个线程 保证始终有一个会执行发射操作
+                 同时保证了执行一次发射之后不会再执行发射操作
+                 竟态条件解决发射数据是哪个线程的责任的问题*/
+                final SingleDelayedProducer<String> delayedProducer = new SingleDelayedProducer<String>(subscriber);
+                System.out.println("singleProducer submit time:"+Calendar.getInstance());
+                Schedulers.io().createWorker().schedule(new Action0() {
+                            @Override
+                            public void call() {
+                                System.out.println();
+                                System.out.println("Start Sleep:"+Calendar.getInstance().toString());
+                                ThreadInfoUtil.quietSleepThread(1, TimeUnit.SECONDS);
+                                System.out.println("End Sleep:"+Calendar.getInstance().toString());
+//                                此处 NRNV HRNV 转变HV（has value）
+                                Assert.assertEquals(delayedProducer.get(),0);/*NRNV*/ /*step1*/
+                                delayedProducer.setValue("ss");
+                                Assert.assertEquals(delayedProducer.get(),1);/*HRHV*/ /*step3 emit*/
+
+                            }
+                        });
+//                此处会去调用request NRNV NRHV 到HR（has request 的转换）
+                subscriber.setProducer(delayedProducer);
+                Assert.assertEquals(delayedProducer.get(),2);/*HRNV*/ /*step2*/
+//                最终当转换成HRHV的时候则执行发射操作
+            }
+        });
+
+        Action1<String> onNext = new Action1<String>() {
+            @Override
+            public void call(String s) {
+                System.out.println();
+                System.out.println("onNextTime:" + Calendar
+                        .getInstance()
+                        .toString());
+                ThreadInfoUtil.printThreadInfo("onNext:=> s is " + s);
+            }
+        };
+        singleDelayObservable.subscribe(onNext);
+// 订阅两次不会执行发射操作
+
+        ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
+    }
 
     @Test
     public void numOverFlow() {
@@ -869,6 +979,60 @@ public class HelloTest {
 
     //=======================main 方法===============================
     public static void main(String[] args) {
+//        amb多个Observable谁先发射 则发射完第一个发射的Observable的所有序列
+
+// 延迟 1s发射第一个数据
+        Observable<Integer> integerObservableDelay1s = Observable
+                .create(new Observable.OnSubscribe<Integer>() {
+                    @Override
+                    public void call(Subscriber<? super Integer> subscriber) {
+                        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+                        int numBase = 1000;
+                        for (int i = 0; i < 10; i++) {
+                            subscriber.onNext(numBase + i);
+                        }
+//                        subscriber.onCompleted();
+                    }
+                })
+                .delay(0,TimeUnit.SECONDS).subscribeOn(Schedulers.io());
+// 延迟 2s发射第一个数据
+        Observable<Integer> integerObservableDelay2S = Observable
+                .create(new Observable.OnSubscribe<Integer>() {
+                    @Override
+                    public void call(Subscriber<? super Integer> subscriber) {
+//                        amb会在第一个Observable发送数据之后cancel 当前（第二个Observable）导致 interruptedException
+//                        cancel会立即调用cancel interrupted
+                        ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+                        int numBase = 2000;
+                        for (int i = 0; i < 10; i++) {
+                            subscriber.onNext(numBase + i);
+                        }
+//                        subscriber.onCompleted();
+                    }
+                })
+                .delay(0,TimeUnit.SECONDS).subscribeOn(Schedulers.io());
+
+        Observable.amb(integerObservableDelay1s,integerObservableDelay2S).subscribe(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                System.out.println("onNext is:"+integer);
+            }
+        });
+
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+    }
+
+    static class UnsafeClass {
+        public int n;
+
+        public void assertsN() {
+            if (n != n) {/* Doug Lea java并发编程书说该处存在问题*/
+                throw new IllegalStateException("n !- n");
+            }
+        }
+    }
+
+    static void mainTestUnSafe(){
         final UnsafeClass unsafeClass = new UnsafeClass();
         new Thread() {
             @Override
@@ -886,16 +1050,5 @@ public class HelloTest {
                 }
             }
         }.start();
-       Collections.synchronizedList(new ArrayList<String>());
-    }
-
-    static class UnsafeClass {
-        public int n;
-
-        public void assertsN() {
-            if (n != n) {
-                throw new IllegalStateException("n !- n");
-            }
-        }
     }
 }

@@ -1,4 +1,4 @@
-package huntertest;
+package huntertest.util;
 
 import java.lang.reflect.Field;
 

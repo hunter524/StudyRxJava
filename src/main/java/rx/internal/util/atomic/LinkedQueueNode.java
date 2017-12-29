@@ -17,7 +17,7 @@
 package rx.internal.util.atomic;
 
 import java.util.concurrent.atomic.AtomicReference;
-
+//使用AtomicReference 保存链表节点对下一个元素的引用
 public final class LinkedQueueNode<E> extends AtomicReference<LinkedQueueNode<E>> {
     /** */
     private static final long serialVersionUID = 2404266111789071508L;

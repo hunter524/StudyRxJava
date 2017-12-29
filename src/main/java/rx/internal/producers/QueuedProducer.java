@@ -91,6 +91,7 @@ public final class QueuedProducer<T> extends AtomicLong implements Producer, Obs
                 return false;
             }
         }
+//        如果入对成功则开始执行队列漏操作
         drain();
         return true;
     }
@@ -141,15 +142,19 @@ public final class QueuedProducer<T> extends AtomicLong implements Producer, Obs
             final Queue<Object> q = queue;
 
             do {
+//                先检查done 再判断队列为空是为了是为了避免漏掉一些数据
+//                因为 drain() 函数可能被并发调用（被 onXXX() 函数或者 request() 函数调用）
+//                检查done 和 isEmpty并非原子操作（存在竟态条件）
+//                如果先检查 isEmpty可能存在 当前队列为空 后来加入元素 再后来done置位为true导致 中间加入的元素被遗漏发射
                 if (checkTerminated(done, q.isEmpty())) {    // (1)
                     return;
                 }
-
+//设置的是队列漏的标志位
                 wip.lazySet(1);
-
+//此处获取的是当前的请求的数据 当前请求的数据不为0且存在数据时才会将数据漏给订阅者
                 long r = get();
                 long e = 0;
-
+//队列漏的优化 一次消耗所有元素
                 while (r != 0) {
                     boolean d = done;
                     Object v = q.poll();
@@ -161,6 +166,7 @@ public final class QueuedProducer<T> extends AtomicLong implements Producer, Obs
                     }
 
                     try {
+//JCTools的队列不能放入null 元素 但是rxjava1 允许onNext传入null元素，因此需要对null元素进行标记
                         if (v == NULL_SENTINEL) {
                             c.onNext(null);
                         } else {
@@ -175,7 +181,7 @@ public final class QueuedProducer<T> extends AtomicLong implements Producer, Obs
                     r--;
                     e++;
                 }
-
+// 此处设置的是已经发送的数据
                 if (e != 0 && get() != Long.MAX_VALUE) {
                     addAndGet(-e);
                 }

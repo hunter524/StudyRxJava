@@ -1,11 +1,16 @@
-package huntertest;
+package huntertest.util;
 
 import java.util.concurrent.TimeUnit;
 
 public class ThreadInfoUtil {
     public static final void printThreadInfo(String prefix){
-        System.out.println(prefix+":"+Thread.currentThread().toString());
+        System.out.println(prefix+":"+getThreadInfo());
     }
+
+    public static final String getThreadInfo(){
+        return Thread.currentThread().toString();
+    }
+
     public static final void printThreadInfo(){
         printThreadInfo("Thread Info");
     }

@@ -72,6 +72,9 @@ public class SerializedObserver<T> implements Observer<T> {
         if (terminated) {
             return;
         }
+//        发射循环 第一个同步方法判断是否 已经结束或者正在发射
+//        如果已经有线程正在发射则执行 入队操作 然后入队线程返回 由当前正在发射的线程继续执行发射操作
+//        没有则标记当前线程进入法神状态 发射当前元素
         synchronized (this) {
             if (terminated) {
                 return;
@@ -87,6 +90,7 @@ public class SerializedObserver<T> implements Observer<T> {
             }
             emitting = true;
         }
+//        没有线程正在发射 则直接发射当前元素
         try {
             actual.onNext(t);
         } catch (Throwable e) {
@@ -94,6 +98,11 @@ public class SerializedObserver<T> implements Observer<T> {
             Exceptions.throwOrReport(e, actual, t);
             return;
         }
+//        发射完当前元素之后lock this 判断队列当前元素是否为空
+//                                 1.为空则返回（发射当前元素的时候没有其他线程插入元素）
+//                                 2.不为空则发射当前元素期间（有元素被插入队列，当前发射线程继续发射元素）
+//                                   一次性循环发射完成队列中的所有元素
+//        由 this 锁住的fastlist 保证队列的线程安全性
         for (;;) {
             FastList list;
             synchronized (this) {
