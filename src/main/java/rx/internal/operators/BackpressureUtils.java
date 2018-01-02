@@ -55,6 +55,8 @@ public final class BackpressureUtils {
     public static long getAndAddRequest(AtomicLong requested, long n) {
         // add n to field but check for overflow
         while (true) {
+//            保证加的操作不会溢出（大于Long的最大值）
+//            同时CAS操作保证操作的原子性
             long current = requested.get();
             long next = addCap(current, n);
             if (requested.compareAndSet(current, next)) {

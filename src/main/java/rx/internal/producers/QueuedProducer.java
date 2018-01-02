@@ -146,7 +146,7 @@ public final class QueuedProducer<T> extends AtomicLong implements Producer, Obs
 //                因为 drain() 函数可能被并发调用（被 onXXX() 函数或者 request() 函数调用）
 //                检查done 和 isEmpty并非原子操作（存在竟态条件）
 //                如果先检查 isEmpty可能存在 当前队列为空 后来加入元素 再后来done置位为true导致 中间加入的元素被遗漏发射
-                if (checkTerminated(done, q.isEmpty())) {    // (1)
+                if (checkTerminated(done,/*这两个操作为非原子操作*/ q.isEmpty())) {    // (1)
                     return;
                 }
 //设置的是队列漏的标志位

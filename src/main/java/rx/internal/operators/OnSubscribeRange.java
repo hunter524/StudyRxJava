@@ -56,6 +56,7 @@ public final class OnSubscribeRange implements OnSubscribe<Integer> {
     //小量请求之后接着一个无限量的请求是不存在的
     // 如果先request一个 3 再去request一个Long.MAX_VALUE
     // 会导致requestedAmount = addAndGet(-emitted)递减成为一个负值从而无休止的陷入在慢路径循环中
+    // TODO: 18-1-2 hunter 具体的流程待继续分析为什么
         @Override
         public void request(long requestedAmount) {
             if (get() == Long.MAX_VALUE) {

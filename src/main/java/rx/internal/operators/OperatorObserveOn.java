@@ -130,7 +130,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
             // signal that this is an async operator capable of receiving this many
             request(calculatedSize);
         }
-
+// 此处 会根据下面的Subscriber设置 必须在调用 super.setProducer(p); 方法之前设置request的元素
         void init() {
             // don't want this code in the constructor because `this` can escape through the
             // setProducer call
@@ -224,6 +224,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
                     localChild.onNext(NotificationLite.<T>getValue(v));
 
                     currentEmission++;
+//                    当已经发射的元素 等于当前计算得到的limit时则会再去请求元素 请求128 - 128/4 个元素
                     if (currentEmission == limit) {
                         requestAmount = BackpressureUtils.produced(requested, currentEmission);
                         request(currentEmission);

@@ -210,6 +210,7 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
          * that there is always once who acts on each `tick`. Same concept as used in OperationObserveOn.
          *
          */
+//        合并缓存的数据 调用合并方法 向下游继续发送数据
         @SuppressWarnings("unchecked")
         void tick() {
             final Object[] subscribers = this.subscribers;
@@ -288,6 +289,9 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
         // used to observe each Observable we are zipping together
         // it collects all items in an internal queue
         @SuppressWarnings("rawtypes")
+//        Zip的内部订阅者 会订阅前面几个的Observable缓存结果
+//        当多个Observable的第1,2,...个结果均发出之后调用一次合并方法向下游再发送一次数据
+
         final class InnerSubscriber extends Subscriber {
             // Concurrent* since we need to read it from across threads
             final RxRingBuffer items = RxRingBuffer.getSpmcInstance();

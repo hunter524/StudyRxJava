@@ -76,6 +76,7 @@ public final class Functions {
      *          the {@code Func2} to convert
      * @return a {@link FuncN} representation of {@code f}
      */
+//    将Func2 转换成FuncN进行处理 将异构的转换成同构的
     public static <T0, T1, R> FuncN<R> fromFunc(final Func2<? super T0, ? super T1, ? extends R> f) {
         return new FuncN<R>() {
 

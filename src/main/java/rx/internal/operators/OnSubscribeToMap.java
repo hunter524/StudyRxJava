@@ -78,7 +78,7 @@ public final class OnSubscribeToMap<T, K, V> implements OnSubscribe<Map<K, V>>, 
             this.mapFactory = mapFactory;
         }
     }
-
+//toMap默认采用的是HashMap
     @Override
     public Map<K, V> call() {
         return new HashMap<K, V>();
