@@ -37,6 +37,8 @@ import rx.schedulers.Schedulers;
  * @param <T>
  *            the transmitted value type
  */
+//observeOn onXXX（Error Completed Next）三个方法是在观察者线程调用
+// TODO: 18-1-3 涉及线程安全问题元素的合理发布
 public final class OperatorObserveOn<T> implements Operator<T, T> {
 
     private final Scheduler scheduler;

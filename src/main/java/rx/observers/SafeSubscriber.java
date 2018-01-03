@@ -55,6 +55,16 @@ import rx.plugins.*;
  * @param <T>
  *            the type of item expected by the {@link Subscriber}
  */
+//SafeSubscriber 与 Subscriber的区别
+//SafeSubscriber 符合Observable的订阅规则：
+//    1、onError onCompleted只被调用一次
+//    2、当onError 或者 onCompleted 被调用之后，不再可以调用onNext
+//    3、当调用onError之后便解除订阅关系
+//    普通的Subscriber则不保证上述订阅主旨
+
+//SafeSubscriber 与 SerializedSubscriber的区别
+//    1、SafeSubscriber 不保证多个发射者对onNext的顺序调用和单线程调用（存在与订阅多个Observable处于不同的线程发射数据，会导致onXXX被并发调用
+//    2、SerializedSubscriber保证了订阅的onXXX会被顺序调用（同一时刻只有一个线程调用onXXX[发射循环保证同一个时刻只有一个线程调用]）
 public class SafeSubscriber<T> extends Subscriber<T> {
 
     private final Subscriber<? super T> actual;

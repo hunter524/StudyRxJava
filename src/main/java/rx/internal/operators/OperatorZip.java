@@ -289,9 +289,11 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
         // used to observe each Observable we are zipping together
         // it collects all items in an internal queue
         @SuppressWarnings("rawtypes")
+
 //        Zip的内部订阅者 会订阅前面几个的Observable缓存结果
 //        当多个Observable的第1,2,...个结果均发出之后调用一次合并方法向下游再发送一次数据
 
+//        zip操作符会有被压操作 防止发射数据过多导致 观察者来不及处理的问题
         final class InnerSubscriber extends Subscriber {
             // Concurrent* since we need to read it from across threads
             final RxRingBuffer items = RxRingBuffer.getSpmcInstance();
@@ -320,6 +322,10 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
             @Override
             public void onNext(Object t) {
                 try {
+                    // TODO: 18-1-3 hunter testCode
+//                    zip下游抛出异常 上游还在发送数据
+//                    System.out.println("capacity:"+items.capacity() +"  items available："+items.available());
+//                    end
                     items.onNext(t);
                 } catch (MissingBackpressureException e) {
                     onError(e);

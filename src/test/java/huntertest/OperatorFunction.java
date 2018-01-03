@@ -1,22 +1,55 @@
 package huntertest;
 
+import huntertest.util.CollectionsUtil;
 import huntertest.util.ThreadInfoUtil;
+import org.junit.Before;
 import org.junit.Test;
 import rx.Observable;
 import rx.Observer;
 import rx.functions.Action1;
-import rx.functions.Func0;
+import rx.functions.Func1;
+import rx.functions.Func2;
 import rx.observables.SyncOnSubscribe;
+import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 为了理解每个操作符的用处
  */
 public class OperatorFunction {
+
+
+    Observable<Integer> just1to7;
+    Observable<String> just1to7Str;
+    TestSubscriber<Integer> testSubscriberInteger;
+    private TestSubscriber<String> testSubscriberStr;
+
+    @Before
+    public void initObservableAndObserver(){
+        just1to7 = Observable.just(1,2,3,4,5,6,7);
+        testSubscriberInteger = new TestSubscriber<Integer>(){
+            @Override
+            public void onNext(Integer integer) {
+                super.onNext(integer);
+                System.out.println("onNext from test Subscriber:"+String.valueOf(integer));
+            }
+        };
+        testSubscriberStr = new TestSubscriber<String>() {
+            @Override
+            public void onNext(String s) {
+                super.onNext(s);
+                System.out.println("onNext from test Subscriber:"+s);
+            }
+        };
+
+        just1to7Str = Observable.just("1","2","3","4","5","6","7");
+    }
 
     /**
      * 多个Observable 发射数据有延迟，取最早发射数据的那个Observable然后发送该Observable的所有数据
@@ -125,4 +158,101 @@ public class OperatorFunction {
 //            }
 //        })
     }
+
+    /**
+     * 将一个Observable发射的多个同一类型的数据转换成为Observable只发射该数据集合的List操作
+     */
+    @Test
+    public void toList(){
+        Observable.just(1,2,3,4).toList().subscribe(new Action1<List<Integer>>() {
+            @Override
+            public void call(List<Integer> integers) {
+                Object[] objects = integers.toArray();
+                String array = Arrays.deepToString(objects);
+                System.out.println("toList :"+array);
+            }
+        });
+    }
+
+    @Test
+    public void toMap(){
+        Observable.just("a","bb","ccc","dddd").toMap(new Func1<String, Integer>() {
+            @Override
+            public Integer call(String s) {
+                return s.length();
+            }
+        }, new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                return s+s;
+            }
+        }).subscribe(new Action1<Map<Integer, String>>() {
+            @Override
+            public void call(Map<Integer, String> integerStringMap) {
+//                此处应该是HashMap
+                System.out.println("integerStringMap is :"+integerStringMap.getClass().getCanonicalName());
+//                打印map的内容
+                System.out.println("integerStringMap content is:"+integerStringMap.toString());
+
+            }
+        });
+    }
+
+    @Test
+    public void takeXXX(){
+        Observable<Integer> just1To7 = Observable.just(1, 2, 3, 4, 5, 6, 7);
+        TestSubscriber<Integer> subscriber = new TestSubscriber<Integer>();
+        just1To7.takeUntil(new Func1<Integer, Boolean>() {
+            @Override
+            public Boolean call(Integer integer) {
+                return integer == 4;
+            }
+        }).subscribe(subscriber);
+        List<Integer> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+    }
+
+    /**
+     * 每次获得一次数据将数据累加之后返回
+     * 预期结果 1|2|3|4|5|6|7
+     *
+     */
+    @Test
+    public void reduce(){
+        just1to7Str.reduce(new Func2<String, String, String>() {
+            @Override
+            public String call(String s, String s2) {
+                return s+"|"+s2;
+            }
+        }).subscribe(testSubscriberStr);
+    }
+
+    @Test
+    public void concatWith(){
+        Observable.just(1).concatWith(Observable.just(2)).subscribe(testSubscriberInteger);
+    }
+
+    @Test
+    // TODO: 18-1-3 流程分析 总是绕晕了！！！
+//    适用于将结果进行摊平的场景
+    public void flatMap(){
+        List<Integer> integers1 = Arrays.asList(1, 11, 111, 1111, 11111);
+        List<Integer> integers2 = Arrays.asList(2, 22, 222, 2222, 22222);
+        TestSubscriber<Integer> testSubscriber = new TestSubscriber<Integer>();
+//        发射 初始的list 取得结果 再发射 将 多个Observable进行merge操作
+//        先map 再merge
+        Observable
+                .just(integers1, integers2)
+                .flatMap(new Func1<List<Integer>, Observable<Integer>>() {
+                    @Override
+                    public Observable<Integer> call(List<Integer> integers) {
+                        return Observable.from(integers);
+                    }
+                })
+                .subscribe(testSubscriber);
+        List<Integer> onNextEvents = testSubscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+    }
+
+
 }

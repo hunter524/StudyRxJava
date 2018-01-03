@@ -27,6 +27,7 @@ import rx.functions.Action0;
  *
  * @param <T> the value type of the actual source
  */
+//Subscribe向上订阅的call方法在 subscribeOn线程调用
 public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
 
     final Scheduler scheduler;

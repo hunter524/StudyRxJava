@@ -22,7 +22,7 @@ import rx.*;
 import rx.functions.Action0;
 import rx.internal.util.*;
 import rx.subscriptions.*;
-//computation 的 Scheduler
+//computation 的 Scheduler 基于java并发编程实战 Page 84 脚注cpu密集型任务最大吞吐量的状态是 线程个数等于 Ncpu或者 比CPU个数多一个
 public final class EventLoopsScheduler extends Scheduler implements SchedulerLifecycle {
     /**
      * Key to setting the maximum number of computation scheduler threads.

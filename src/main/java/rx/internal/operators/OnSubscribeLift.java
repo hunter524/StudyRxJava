@@ -38,11 +38,12 @@ public final class OnSubscribeLift<T, R> implements OnSubscribe<R> {
         this.parent = parent;
         this.operator = operator;
     }
-//订阅之后向上游回溯call 因此传入的是下游的Subscriber
+//订阅之后由下游向上游回溯call 因此传入的是下游的Subscriber
 //该OnSubscribexxx 获取Operator转换后的Subscriber交给上游调用
     @Override
     public void call(Subscriber<? super R> o) {
         try {
+            /*st交给上游调用 上游调用st st调用下游 从而进行转换*/
             Subscriber<? super T> st = RxJavaHooks.onObservableLift(operator).call(o);
             try {
                 // new Subscriber created and being subscribed with so 'onStart' it

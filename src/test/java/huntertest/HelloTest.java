@@ -1,6 +1,7 @@
 package huntertest;
 
 import huntertest.util.ClassUtil;
+import huntertest.util.CollectionsUtil;
 import huntertest.util.ThreadInfoUtil;
 import org.junit.Assert;
 import org.junit.Before;
@@ -14,6 +15,7 @@ import rx.functions.Func1;
 import rx.functions.Func2;
 import rx.internal.producers.SingleDelayedProducer;
 import rx.internal.schedulers.NewThreadWorker;
+import rx.observables.AsyncOnSubscribe;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.SerializedObserver;
 import rx.observers.TestSubscriber;
@@ -33,6 +35,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class HelloTest {
+
 
     static Observable<String> observableJust123 = Observable.just("1", "2", "3");
     static Action1<String> onNextActionPrintThreadInfo = new Action1<String>() {
@@ -111,6 +114,13 @@ public class HelloTest {
         }
     }
 
+    Observable<Integer> just1to7;
+    Observable<String> just1to7Str;
+    TestSubscriber<Integer> testSubscriberInteger;
+    TestSubscriber<String> testSubscriberStr;
+
+    TestSubscriber<String> testSubscriberStrSlowProcced;
+
 
     @Before
     public void configRxjava() {
@@ -140,6 +150,44 @@ public class HelloTest {
                 return throwable;
             }
         });
+    }
+
+    @Before
+    public void initObservableAndObserver(){
+        just1to7 = Observable.just(1,2,3,4,5,6,7);
+        testSubscriberInteger = new TestSubscriber<Integer>(){
+            @Override
+            public void onNext(Integer integer) {
+                super.onNext(integer);
+                System.out.println("onNext from test Subscriber:"+String.valueOf(integer));
+            }
+        };
+        testSubscriberStr = new TestSubscriber<String>() {
+            @Override
+            public void onNext(String s) {
+                super.onNext(s);
+                System.out.println("onNext from test Subscriber:"+s);
+            }
+        };
+
+        testSubscriberStrSlowProcced = new TestSubscriber<String>() {
+            @Override
+            public void onNext(String s) {
+                super.onNext(s);
+                System.out.println("onNext from test Subscriber:"+s);
+                ThreadInfoUtil.printThreadInfo("onNext from test Subscriber");
+                ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                super.onError(e);
+                System.out.println("onError message is:"+e.getClass().getCanonicalName());
+                e.printStackTrace(System.out);
+            }
+        };
+
+        just1to7Str = Observable.just("1","2","3","4","5","6","7");
     }
 
     @Test
@@ -1050,5 +1098,220 @@ public class HelloTest {
                 }
             }
         }.start();
+    }
+
+    /**
+     *
+     */
+    // TODO: 18-1-2 hunter 初步了解 request和设置Producer的流程 后面需要将该流程进行细化分析
+    @Test(timeout = 60000)/*强制退出避免后台占用资源*/
+    public void analyseProducerAndRequestAgain(){
+        Observable<String> asyncObservable = Observable.create(new AsyncOnSubscribe<Integer, String>() {
+
+            @Override
+            protected Integer generateState() {
+                return 1;
+            }
+//observer 的onNext只能调用一次 AsyncOnSubscribe 调用则会出现该种状态
+            @Override
+            protected Integer next(Integer state, long requested, Observer<Observable<? extends String>> observer) {
+                System.out.println("asyncObservable requested :"+requested);
+                List<String> listStr = new LinkedList<String>();
+                System.out.println("call onNext requested:"+requested/*+" current:"+i*/);
+                for (int i = 0; i < requested; i++) {
+                    String requestedValue = "|" + state + " i:" + i;
+                    listStr.add(requestedValue);
+                }
+                observer.onNext(Observable.from(listStr));
+                return ++state;
+            }
+        });
+
+//        asyncObservable.subscribeOn(Schedulers.computation()).subscribeOn(Schedulers.io()).subscribe(testSubscriberStr);
+
+//        预期由于Computation默认请求128 预期onBackpressureBuffer会请求两次
+//        实际请求了long的最大值
+//        onBackPressureBuffer 超出下面线程的线程的消费能力的时候默认会 抛出异常 但是存在其他异常
+//        使用溢出时放弃最新数据依然会导致订阅链抛出异常被终止订阅
+        asyncObservable
+//
+                .subscribeOn(Schedulers.computation())
+//                该操作符每次请求最大个数 Long的最大值
+//                .onBackpressureBuffer(256, new Action0() {
+//                    @Override
+//                    public void call() {
+//                        System.out.println("over flow!");
+//                    }
+//                }, BackpressureOverflow.ON_OVERFLOW_DROP_LATEST)
+
+//该操作符会首次默认请求128个元素 缓存128个元素 后面会请求 128 - 128/4 = 96个元素进行缓存 ObserveOnSubscriber
+                .observeOn(Schedulers.io())
+                .subscribe(new Subscriber<String>() {
+
+                    @Override
+                    public void onStart() {
+                        super.onStart();
+                        System.out.println("call subscriber onStart！ request 1");
+                        request(1);
+                    }
+
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        System.out.println("onError message:"+e.getMessage());
+                    }
+
+                    @Override
+                    public void onNext(String s) {
+                        System.out.println("Lazy subscriber onNext s:" + s);
+                        ThreadInfoUtil.quietSleepThread(100, TimeUnit.MILLISECONDS);
+//                        如果此处不再请求数据则调用链 会停止发送数据 但是调用链未触发onError 或者onCompleted 导致调用链结束
+                        request(1);
+                    }
+
+                    @Override
+                    public void setProducer(Producer p) {
+//                        该处设置请求 1 个元素 如果不设置则一次会请求 最大的元素进行发射
+//                        设置当前Subscriber的时候默认不请求元素，当订阅者开始调用start发送数据时请求 1个数据 每次onNext请求结束后请求一个数据
+                        System.out.println("call subscriber setProducer！ request 0");
+                        request(0);
+                        super.setProducer(p);
+                    }
+                });
+
+        ThreadInfoUtil.quietSleepThread(60,TimeUnit.SECONDS);
+        System.exit(0);
+    }
+
+    /**
+     * call chain 保证了对象发布的线程安全性 当调用下一个操作符合时 上一个操作符完全执行完毕不再调用
+     */
+    @Test
+    public void analysedoOnSubscribe(){
+        just1to7.doOnSubscribe(new Action0() {
+            @Override
+            public void call() {
+                System.out.println("call doOnSubscribe!");
+            }
+        }).doOnNext(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                System.out.println("call doOnNext first:"+integer);
+            }
+        }).map(new Func1<Integer, Integer>() {
+            @Override
+            public Integer call(Integer integer) {
+                return integer*2;
+            }
+        }).doOnNext(new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                System.out.println("call doOnNext second:"+integer);
+            }
+        }).subscribe(testSubscriberInteger);
+    }
+
+    @Test
+    public void analyseZipBackPressure(){
+//        使用同步SyncOnSubscribe是安全的
+        SyncOnSubscribe<String, String> syncOnSubscribe = new SyncOnSubscribe<String, String>() {
+            int i = 0;
+
+            @Override
+            protected String generateState() {
+                return "infinite";
+            }
+
+            @Override
+            protected String next(String state, Observer<? super String> observer) {
+                observer.onNext(state + (++i));
+                return state;
+            }
+        };
+//        使用自定义的OnSubscribe 则会触发背压检测
+//        背压的定义是：生产者的生产速度大于消费者的消费速度，使中转容器容量满了
+        Observable.OnSubscribe<String> infiniteOnSubscribe = new Observable.OnSubscribe<String>() {
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+//                使用该种方式会导致上游一直发送数据 无法停止 即使下游已经由于背压问题抛出异常导致解除订阅了
+                int i = 0;
+                while (true) {
+                    ++i;
+                    subscriber.onNext("i:" + i);
+                }
+            }
+        };
+        Observable<String> infinityObservable = Observable.create(infiniteOnSubscribe);
+//        预期会报出 MissingBackpressureException异常
+        Observable
+                .zip(infinityObservable, infinityObservable, new Func2<String, String, String>() {
+                    @Override
+                    public String call(String s, String s2) {
+                        return s + s2;
+                    }
+                })
+                .subscribeOn(Schedulers.computation())
+//                太大会导致 ConcurrentCircularArrayQueue 堆溢出
+                .observeOn(Schedulers.io(),Integer.MAX_VALUE>>6)
+                .subscribe(testSubscriberStrSlowProcced);
+
+        ThreadInfoUtil.quietSleepThread(20,TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testProducerArbiter(){
+        TestSubscriber<Integer> firstSubscriber = new TestSubscriber<Integer>();
+        Observable<Integer> source = Observable
+                .range(1, 10)
+                .lift(new ThenOperatorError<Integer>(Observable.range(11, 90)));
+        source.subscribe(firstSubscriber);
+        System.out.println("=== first Subscriber ===");
+        CollectionsUtil.printList(firstSubscriber.getOnNextEvents());
+
+        System.out.println("=== second Subscriber ===");
+        TestSubscriber<Integer> sencondSubsriber = new TestSubscriber<Integer>();
+//        如果直接request 20 会导致两个Observable都发送 20个数据 第一个Observable由于只有10个数据 因此只发送10个数据？
+//        第二个Observable 会发送20个数据
+        sencondSubsriber.requestMore(20);
+        source.subscribe(sencondSubsriber);
+        CollectionsUtil.printList(sencondSubsriber.getOnNextEvents());
+
+
+    }
+
+    class ThenOperatorError<T> implements Observable.Operator<T,T>{
+
+        private Observable<? extends T> other;
+
+        public ThenOperatorError(Observable<? extends T> other) {
+            this.other = other;
+        }
+
+        @Override
+        public Subscriber<? super T> call(final Subscriber<? super T> subscriber) {
+            Subscriber<T> parent = new Subscriber<T>() {
+                @Override
+                public void onCompleted() {
+                    other.subscribe(subscriber);
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    subscriber.onError(e);
+                    unsubscribe();
+                }
+
+                @Override
+                public void onNext(T t) {
+                    subscriber.onNext(t);
+                }
+            };
+            subscriber.add(parent);
+            return parent;
+        }
     }
 }

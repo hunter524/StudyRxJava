@@ -21,6 +21,7 @@ import rx.*;
  * Producer that allows changing an underlying producer atomically and correctly resume with the accumulated
  * requests.
  */
+//Produce 仲裁者 方便切换Producer 解决的问题是中途切换了Producer避免Producer重复发送已经发送的数据
 public final class ProducerArbiter implements Producer {
     long requested;
     Producer currentProducer;

@@ -2143,6 +2143,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/interval.html">ReactiveX operators documentation: Interval</a>
      * @since 1.0.12
      */
+//    Work会被Scheduler持有 在Activity结束时不释放订阅关系做垃圾回收 则会导致Activity长时间被Scheduler持有从而导致内存泄露
     public static Observable<Long> interval(long initialDelay, long period, TimeUnit unit, Scheduler scheduler) {
         return unsafeCreate(new OnSubscribeTimerPeriodically(initialDelay, period, unit, scheduler));
     }
