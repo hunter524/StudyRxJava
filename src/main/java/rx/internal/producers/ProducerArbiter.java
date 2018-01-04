@@ -22,6 +22,7 @@ import rx.*;
  * requests.
  */
 //Produce 仲裁者 方便切换Producer 解决的问题是中途切换了Producer避免Producer重复发送已经发送的数据
+//    主要解决的问题：切换数据源时 新的数据源 只发送当前请求但是未发送的数据
 public final class ProducerArbiter implements Producer {
     long requested;
     Producer currentProducer;

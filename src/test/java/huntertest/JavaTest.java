@@ -2,12 +2,17 @@ package huntertest;
 
 import huntertest.util.ThreadInfoUtil;
 
+import java.util.Calendar;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class JavaTest {
     public static void main(String[] args) {
         countDownLatch();
+        new Thread(()->{
+            System.out.println("lambda test time:"+ Calendar.getInstance().getTime());
+        }).start();
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
     }
 
     public static final void maxArray(){

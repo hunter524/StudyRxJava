@@ -1283,6 +1283,15 @@ public class HelloTest {
 
     }
 
+
+    @Test
+    public void lambdaTest(){
+        new Thread(()->{
+            System.out.println("success java unit test lambda!");
+        }).start();
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+    }
+
     class ThenOperatorError<T> implements Observable.Operator<T,T>{
 
         private Observable<? extends T> other;
