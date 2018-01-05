@@ -261,6 +261,7 @@ public class Observable<T> {
      * @param <T> the upstream's value type (input)
      * @param <R> the downstream's value type (output)
      */
+    /*lift 导致Operator的call发生在subscribeOn线程 调用Subscriber的onXXX发生在observeOn线程*/
     public interface Operator<R, T> extends Func1<Subscriber<? super R>, Subscriber<? super T>> {
         // cover for generics insanity
     }

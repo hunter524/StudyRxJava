@@ -1,18 +1,18 @@
 package huntertest;
 
+import huntertest.util.CollectionsUtil;
 import huntertest.util.ThreadInfoUtil;
+import org.mockito.cglib.core.CollectionUtils;
 
-import java.util.Calendar;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class JavaTest {
     public static void main(String[] args) {
-        countDownLatch();
-        new Thread(()->{
-            System.out.println("lambda test time:"+ Calendar.getInstance().getTime());
-        }).start();
-        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+//        countDownLatch();
+//        exchange();
+//        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+        dameThread();
     }
 
     public static final void maxArray(){
@@ -66,5 +66,63 @@ public class JavaTest {
 
         ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
 
+    }
+
+    public static final void exchange(){
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(2);
+//        list在两个线程之间安全的交换
+        Exchanger<List<Integer>> arrayListExchanger = new Exchanger<>();
+        new Thread(()->{
+
+            List<Integer> integers = Arrays.asList(1, 2, 3, 4, 5, 6, 7);
+            System.out.println("thread 1 exchange");
+            try {
+                cyclicBarrier.await();
+                integers = arrayListExchanger.exchange(integers);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (BrokenBarrierException e) {
+                e.printStackTrace();
+            }
+            System.out.println("thread 1 after exchange!");
+            CollectionsUtil.printList(integers);
+
+        }).start();
+
+        new Thread(()->{
+            List<Integer> integers = Arrays.asList(8, 9, 10,11, 12, 13,14,20000);
+            System.out.println("thread 2 exchange");
+            try {
+                cyclicBarrier.await();
+                integers = arrayListExchanger.exchange(integers);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (BrokenBarrierException e) {
+                e.printStackTrace();
+            }
+            System.out.println("thread 2 after exchange!");
+            CollectionsUtil.printList(integers);
+
+        }).start();
+    }
+
+    /**
+     * 非Dame线程不结束 虚拟机不退出
+     */
+    public static final void dameThread(){
+        new Thread(()->{
+            boolean daemon = Thread
+                    .currentThread()
+                    .isDaemon();
+            System.out.println("Sub isDame:"+daemon+"Time:"+Calendar.getInstance().getTime());
+            ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
+            System.out.println("Sub Thread End!"+"Time:"+Calendar.getInstance().getTime());
+        }).start();
+        boolean daemon = Thread
+                .currentThread()
+                .isDaemon();
+        ThreadInfoUtil.printThreadInfo("Main Thread");
+//        测试非Dema线程不退出 主线程不退出
+        System.out.println("isDame:"+daemon+"Time:"+Calendar.getInstance().getTime());
     }
 }

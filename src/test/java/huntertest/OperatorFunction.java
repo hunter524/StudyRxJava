@@ -255,4 +255,10 @@ public class OperatorFunction {
     }
 
 
+    @Test
+    public void switchOnNext(){
+//        Observable.switchOnNext()
+    }
+
+
 }

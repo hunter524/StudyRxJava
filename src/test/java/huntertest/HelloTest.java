@@ -13,6 +13,7 @@ import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.internal.producers.ProducerArbiter;
 import rx.internal.producers.SingleDelayedProducer;
 import rx.internal.schedulers.NewThreadWorker;
 import rx.observables.AsyncOnSubscribe;
@@ -28,7 +29,6 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -1266,8 +1266,8 @@ public class HelloTest {
     public void testProducerArbiter(){
         TestSubscriber<Integer> firstSubscriber = new TestSubscriber<Integer>();
         Observable<Integer> source = Observable
-                .range(1, 10)
-                .lift(new ThenOperatorError<Integer>(Observable.range(11, 90)));
+                .range(1, 10)/*使用ProducerArbiter之后操作符会发射正确的数据*/
+                .lift(/*new ThenOperatorError<Integer>*/ new ThenOperatorOk<Integer>(Observable.range(11, 90)));
         source.subscribe(firstSubscriber);
         System.out.println("=== first Subscriber ===");
         CollectionsUtil.printList(firstSubscriber.getOnNextEvents());
@@ -1284,20 +1284,35 @@ public class HelloTest {
     }
 
 
+    /**
+     * Junit Dame 无效还是会退出
+     */
     @Test
     public void lambdaTest(){
         new Thread(()->{
             System.out.println("success java unit test lambda!");
+            boolean daemon = Thread
+                    .currentThread()
+                    .isDaemon();
+            System.out.println("Sub isDame:"+daemon+"Time:"+Calendar.getInstance().getTime());
+            ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
+            System.out.println("Sub Thread End!");
         }).start();
-        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+        boolean daemon = Thread
+                .currentThread()
+                .isDaemon();
+        ThreadInfoUtil.printThreadInfo("test Thread");
+//        测试非Dema线程不退出 主线程不退出
+        System.out.println("isDame:"+daemon+"Time:"+Calendar.getInstance().getTime());
+
     }
 
     class ThenOperatorError<T> implements Observable.Operator<T,T>{
 
-        private Observable<? extends T> other;
+        private Observable<? extends T> then;
 
-        public ThenOperatorError(Observable<? extends T> other) {
-            this.other = other;
+        public ThenOperatorError(Observable<? extends T> then) {
+            this.then = then;
         }
 
         @Override
@@ -1305,7 +1320,7 @@ public class HelloTest {
             Subscriber<T> parent = new Subscriber<T>() {
                 @Override
                 public void onCompleted() {
-                    other.subscribe(subscriber);
+                    then.subscribe(subscriber/*订阅的时候会重新请求20个数据*/);
                 }
 
                 @Override
@@ -1320,6 +1335,77 @@ public class HelloTest {
                 }
             };
             subscriber.add(parent);
+            return parent;
+        }
+    }
+
+    class ThenOperatorOk<T> implements Observable.Operator<T,T>{
+
+        private Observable<? extends T> then;
+
+        public ThenOperatorOk(Observable<? extends T> then) {
+            this.then = then;
+        }
+
+        @Override
+        public Subscriber<? super T> call(Subscriber<? super T> subscriber) {
+            ProducerArbiter pa = new ProducerArbiter();/*用pa去记录每一次已经发射的数据量*/
+            Subscriber<T> parent2 = new Subscriber<T>() {
+
+                @Override
+                public void onCompleted() {
+                    pa.setProducer(null);
+                    subscriber.onCompleted();
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    pa.setProducer(null);
+                    unsubscribe();
+                }
+
+                @Override
+                public void onNext(T t) {
+                    subscriber.onNext(t);
+                    pa.produced(1);
+                }
+
+                @Override
+                public void setProducer(Producer p) {
+                    /*super.setProducer(p);*/
+                    pa.setProducer(p);
+                }
+            };
+
+            Subscriber<T> parent = new Subscriber<T>() {
+                @Override
+                public void onCompleted() {
+                    pa.setProducer(null);
+                    subscriber.add(parent2);
+                    then.unsafeSubscribe(parent2);
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    pa.setProducer(null);
+                    unsubscribe();
+                }
+
+                @Override
+                public void onNext(T t) {
+                    pa.produced(1);
+                    subscriber.onNext(t);
+                }
+
+                @Override
+                public void setProducer(Producer p) {
+//                    此处不调用super使用同一个pa,发射操作交由pa进行操作
+                    /*super.setProducer(p);*/
+                    pa.setProducer(p);
+                }
+            };
+            subscriber.add(parent);
+            subscriber.setProducer(pa);
             return parent;
         }
     }

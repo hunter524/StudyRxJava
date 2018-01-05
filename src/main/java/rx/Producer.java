@@ -27,6 +27,7 @@ package rx;
  * receive a Producer via their {@link Subscriber#setProducer(Producer)} method and will run
  * in unbounded mode. Depending on the chain of operators, this can lead to {@link rx.exceptions.MissingBackpressureException}.
  */
+//Subscriber 可能存在没有Producer的场景
 public interface Producer {
 
     /**
@@ -47,6 +48,7 @@ public interface Producer {
      *          want the Producer to produce items at its own pace
      * @throws IllegalArgumentException if the request amount is negative
      */
+//    request是进行累计处理 当累计的大于Long的最大值的时候则默认无限的数据发射
     void request(long n);
 
 }

@@ -30,6 +30,7 @@ import rx.plugins.RxJavaHooks;
  * @param <T> the input value type
  * @param <R> the return value type
  */
+//map的 map方法是在onNext的线程中进行调用 因此map的方法由observeOn决定调用线程
 public final class OnSubscribeMap<T, R> implements OnSubscribe<R> {
 
     final Observable<T> source;

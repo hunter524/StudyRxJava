@@ -264,6 +264,7 @@ public final class OnSubscribeRedo<T> implements OnSubscribe<T> {
 
                     @Override
                     public void setProducer(Producer producer) {
+//                        发射操作交给了发射仲裁者避免了 替换Producer造成的数据重复发射
                         arbiter.setProducer(producer);
                     }
                 };
