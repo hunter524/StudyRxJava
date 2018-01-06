@@ -24,6 +24,7 @@ import rx.subscriptions.Subscriptions;
  * <p>
  * This interface is the RxJava equivalent of {@code IDisposable} in Microsoft's Rx implementation.
  */
+//目前存在的问题 如果是链式调用 且在一个线程上 则无法在事件发送结束之前获得Subscription从而进一步取消订阅
 public interface Subscription {
 
     /**

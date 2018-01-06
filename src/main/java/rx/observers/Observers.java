@@ -22,6 +22,8 @@ import rx.functions.*;
 /**
  * Helper methods and utilities for creating and working with {@link Observer} objects.
  */
+//预定义的一些观察者 Observable最终订阅的是Subscriber(包括SafeSubscriber,SerializeSubscriber)
+//如果传入的是Observer最终会通过ObserverSubscriber进行包装再向订阅者进行订阅
 public final class Observers {
     private Observers() {
         throw new IllegalStateException("No instances!");

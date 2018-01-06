@@ -22,6 +22,8 @@ import rx.internal.subscriptions.SequentialSubscription;
  * Subscription that can be checked for status such as in a loop inside an {@link Observable} to exit the loop
  * if unsubscribed.
  */
+//设置新的Subscription时不取消前面的Subscription
+//同样使用的SequentialSubscription
 public final class MultipleAssignmentSubscription implements Subscription {
 
     final SequentialSubscription state = new SequentialSubscription();

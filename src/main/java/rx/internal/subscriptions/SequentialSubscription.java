@@ -26,6 +26,7 @@ import rx.subscriptions.Subscriptions;
  * AtomicReference to reduce allocation count (beware the API leak of AtomicReference!).
  * @since 1.1.9
  */
+//MultipleAssignmentSubscription 和 SerialSubscription 内部使用该类进行想过逻辑实现
 public final class SequentialSubscription extends AtomicReference<Subscription> implements Subscription {
 
     /** */
@@ -67,6 +68,8 @@ public final class SequentialSubscription extends AtomicReference<Subscription> 
      * @return true if the update succeeded, false if the container was unsubscribed
      */
     public boolean update(Subscription next) {
+//        无锁的更新当前的订阅者 避免线程切换和阻塞的成本
+//        多线程同时调用 多个线程均不会阻塞 始终保持一定的调用顺序进行原子变量的更新操作
         for (;;) {
             Subscription current = get();
 

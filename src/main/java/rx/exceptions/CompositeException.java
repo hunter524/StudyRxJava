@@ -32,6 +32,7 @@ import java.util.*;
  * If you invoke {@link #getCause()}, it will lazily create the causal chain but will stop if it finds any
  * Throwable in the chain that it has already seen.
  */
+//组合多个操作均抛出的异常 为一个异常进行抛出
 public final class CompositeException extends RuntimeException {
 
     private static final long serialVersionUID = 3026362227162912146L;

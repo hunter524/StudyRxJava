@@ -24,6 +24,8 @@ import rx.Subscription;
  * Keeps track of the sub-subscriptions and unsubscribes the underlying subscription once all sub-subscriptions
  * have unsubscribed.
  */
+// TODO: 18-1-6  OnSubscribeGroupJoin 使用该类进行订阅关系的管理
+//    当所有自的订阅关系被解除 之后 当前持有的实际Subscription才会被解除订阅
 public final class RefCountSubscription implements Subscription {
     private final Subscription actual;
     static final State EMPTY_STATE = new State(false, 0);
@@ -66,7 +68,7 @@ public final class RefCountSubscription implements Subscription {
         }
         this.actual = s;
     }
-
+//每次get一次 添加一次订阅关系
     /**
      * Returns a new sub-subscription
      *
@@ -92,7 +94,7 @@ public final class RefCountSubscription implements Subscription {
     public boolean isUnsubscribed() {
         return state.get().isUnsubscribed;
     }
-
+//每次unsubscribe一次减少一次订阅关系
     @Override
     public void unsubscribe() {
         State oldState;

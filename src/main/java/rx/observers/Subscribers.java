@@ -22,6 +22,7 @@ import rx.functions.*;
 /**
  * Helper methods and utilities for creating and working with {@link Subscriber} objects.
  */
+//一些预设的订阅者
 public final class Subscribers {
     private Subscribers() {
         throw new IllegalStateException("No instances!");

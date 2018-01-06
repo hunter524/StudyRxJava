@@ -32,14 +32,14 @@ import rx.internal.operators.BackpressureUtils;
  */
 public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
     final Subscriber<? super T> child;
-
+//置位也是由this lock保护的 始终只有一个线程可以进入发射循环
     boolean emitting;
 
     List<T> queue;
 
     Producer currentProducer;
     long requested;
-
+//均由this lock保证不变性条件
     long missedRequested;
     Producer missedProducer;
     Object missedTerminal;
@@ -56,7 +56,10 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
     public ProducerObserverArbiter(Subscriber<? super T> child) {
         this.child = child;
     }
-
+//Producer request调用 onNext onCompleted onError 等操作
+//通常调用的是外部 注入的Subscriber
+//就当前POA而言调用的是自己的onNext
+// 保证了Producer的发射数据可以不是串行的,但是进入当前Observer再继续向下面的实际订阅者发射则必须是串行的
     @Override
     public void onNext(T t) {
         synchronized (this) {
@@ -160,7 +163,7 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
             p.request(n);
         }
     }
-
+//会存在并发的更改Producer
     public void setProducer(Producer p) {
         synchronized (this) {
             if (emitting) {
@@ -205,11 +208,13 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
                 localProducer = missedProducer;
                 localTerminal = missedTerminal;
                 q = queue;
+//                全部为空则结束发射循环
                 if (localRequested == 0L && localProducer == null && q == null
                         && localTerminal == null) {
                     emitting = false;
                     quit = true;
                 } else {
+//                    将外部元素 提出置空便于下一次并发的设置Producer request 穿行元素队列
                     missedRequested = 0L;
                     missedProducer = null;
                     queue = null;
@@ -217,12 +222,12 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
                 }
             }
             if (quit) {
-                if (toRequest != 0L && requestFrom != null) {
+                if (toRequest != 0L && requestFrom != null/*第二次循环的时候会进入*/) {
                     requestFrom.request(toRequest);
                 }
                 return;
             }
-
+//向下发射Error Completed数据
             boolean empty = q == null || q.isEmpty();
             if (localTerminal != null) {
                 if (localTerminal != Boolean.TRUE) {
@@ -240,7 +245,7 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
                     if (c.isUnsubscribed()) {
                         return;
                     } else
-                    if (hasError) {
+                    if (hasError) {/*fail-fast 及时失败 已经触发的onError 即使队列中还存在未被发射的next元素也不会被发射 优先发射Error元素*/
                         continue outer; // if an error has been set, shortcut the loop and act on it
                     }
                     try {
@@ -263,6 +268,7 @@ public final class ProducerObserverArbiter<T> implements Producer, Observer<T> {
                     }
                     r = u;
                 }
+//                去除已经发射的元素
                 // if there were emissions and we don't run on max since the last check, subtract
                 if (e != 0L && r != Long.MAX_VALUE) {
                     long u = r - e;

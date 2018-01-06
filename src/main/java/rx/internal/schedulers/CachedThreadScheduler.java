@@ -50,8 +50,8 @@ public final class CachedThreadScheduler extends Scheduler implements SchedulerL
         private final long keepAliveTime;
         private final ConcurrentLinkedQueue<ThreadWorker> expiringWorkerQueue;
         private final CompositeSubscription allWorkers;
-        private final ScheduledExecutorService evictorService;
-        private final Future<?> evictorTask;
+        private final ScheduledExecutorService evictorService;/*清理过时Worker任务的线程池*/
+        private final Future<?> evictorTask;/*定期清理 过时的Worker Runnable*/
 
         CachedWorkerPool(final ThreadFactory threadFactory, long keepAliveTime, TimeUnit unit) {
             this.threadFactory = threadFactory;
@@ -170,12 +170,12 @@ public final class CachedThreadScheduler extends Scheduler implements SchedulerL
             }
         }
     }
-
+//用EventLoopWorker包装一层 ThreadWorker
     @Override
     public Worker createWorker() {
         return new EventLoopWorker(pool.get());
     }
-
+//同时实现了Subscription接口便于调度任务的取消，同时该任务只能取消一次，取消任务同时释放ThreadWorker
     static final class EventLoopWorker extends Scheduler.Worker implements Action0 {
         private final CompositeSubscription innerSubscription = new CompositeSubscription();
         private final CachedWorkerPool pool;
@@ -197,6 +197,7 @@ public final class CachedThreadScheduler extends Scheduler implements SchedulerL
                 System.out.println("EventLoopWorker unsubscribe!");
                 threadWorker.schedule(this);
             }
+//            持有当前待调度任务的Future封装 ScheduledAction
             innerSubscription.unsubscribe();
         }
 //解订阅的时候才会释放自己 同时释放Woker

@@ -36,7 +36,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
     private static final long NOT_SET = Long.MIN_VALUE;
 
     private final SubscriptionList subscriptions;
-    private final Subscriber<?> subscriber;
+    private final Subscriber<?> subscriber;/*外部传入的订阅者 通常是订阅链的下游的订阅者*/
     /* protected by `this` */
     private Producer producer;
     /* protected by `this` */
@@ -93,6 +93,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
         subscriptions.add(s);
     }
 
+    // TODO: 18-1-6 不能在持有锁时调用unsubscribe 为什么？
     @Override
     public final void unsubscribe() {
         subscriptions.unsubscribe();
@@ -154,7 +155,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
             }
         }
         // after releasing lock (we should not make requests holding a lock)
-        producerToRequestFrom.request(n);
+        producerToRequestFrom.request(n);/*调用Producer去发射元素，因此Producer通常持有下面的订阅者（观察者）*/
     }
 
     private void addToRequested(long n) {
@@ -194,7 +195,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
             producer = p;
             if (subscriber != null) {
                 // middle operator ... we pass through unless a request has been made
-                if (toRequest == NOT_SET) {
+                if (toRequest == NOT_SET) {/*request没有设置 1 to Long.MAX_VALUE 则把Producer向下游的订阅者进行传递*/
                     // we pass through to the next producer as nothing has been requested
                     passToSubscriber = true;
                 }
@@ -203,7 +204,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
         // do after releasing lock
         if (passToSubscriber) {
             subscriber.setProducer(producer);
-        } else {
+        } else {/*调用Producer去发射数据*/
             // we execute the request with whatever has been requested (or Long.MAX_VALUE)
             if (toRequest == NOT_SET) {
                 producer.request(Long.MAX_VALUE);

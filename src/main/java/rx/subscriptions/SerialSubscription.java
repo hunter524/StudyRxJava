@@ -22,6 +22,7 @@ import rx.internal.subscriptions.SequentialSubscription;
  * Represents a subscription whose underlying subscription can be swapped for another subscription which causes
  * the previous underlying subscription to be unsubscribed.
  */
+//设置下一个订阅关系的时候 取消上一个订阅关系
 public final class SerialSubscription implements Subscription {
 
     final SequentialSubscription state = new SequentialSubscription();

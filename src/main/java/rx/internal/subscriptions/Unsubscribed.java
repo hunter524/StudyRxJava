@@ -21,7 +21,7 @@ import rx.Subscription;
  * Represents an unsubscribed Subscription via a singleton; don't leak it!
  */
 public enum Unsubscribed implements Subscription {
-    INSTANCE;
+    INSTANCE;/*用一个原子变量或者用一个 final static 对象表示一种状态 是一种编码方式 避免了重用相同对象去进行状态位的设置 直接判断对象是否是特定的状态对象即可*/
 
     @Override
     public boolean isUnsubscribed() {

@@ -27,7 +27,7 @@ import rx.exceptions.Exceptions;
  */
 public final class SubscriptionList implements Subscription {
 
-    private List<Subscription> subscriptions;
+    private List<Subscription> subscriptions;/*LinkedList locke this 保证并发安全性*/
     private volatile boolean unsubscribed;
 
     /**
@@ -96,9 +96,10 @@ public final class SubscriptionList implements Subscription {
                 if (unsubscribed || subs == null) {
                     return;
                 }
-                unsubscribe = subs.remove(s);
+                unsubscribe = subs.remove(s);/*遍历删除内部的元素*/
             }
             if (unsubscribe) {
+//                lock只是为了保证list的安全性
                 // if we removed successfully we then need to call unsubscribe on it (outside of the lock)
                 s.unsubscribe();
             }

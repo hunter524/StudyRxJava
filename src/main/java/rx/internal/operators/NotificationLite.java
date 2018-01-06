@@ -28,6 +28,11 @@ import rx.Observer;
  * An object is allocated inside {@link #error(Throwable)} to wrap the {@link Throwable} but this shouldn't
  * affect performance because exceptions should be exceptionally rare.
  */
+//轻量级的包装 onNext 数据(包括null数据的替换成静态哨兵,因为JCTools的并发容器不支持null数据)
+//    onNext null 与 onCompleted全局共用一个哨兵
+
+//Notification是重量级的包装Notification,将onError onNext(next error 数据不一样无法共用)
+// onCompleted(全局共用一个)数据统一封装进入Notification类中
 public final class NotificationLite {
 
     private NotificationLite() {

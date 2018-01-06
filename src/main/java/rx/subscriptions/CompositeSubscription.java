@@ -31,7 +31,7 @@ import java.util.Set;
  * All methods of this class are thread-safe.
  */
 public final class CompositeSubscription implements Subscription {
-
+//对该Set的访问是 通过 this lock的
     private Set<Subscription> subscriptions;
     private volatile boolean unsubscribed;
 
