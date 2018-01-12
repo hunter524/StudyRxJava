@@ -296,6 +296,8 @@ public class Observable<T> {
      * @return an Observable that is the result of applying the lifted Operator to the source Observable
      * @see <a href="https://github.com/ReactiveX/RxJava/wiki/Implementing-Your-Own-Operators">RxJava wiki: Implementing Your Own Operators</a>
      */
+//    lift操作也只是用用Operator构建一个OnSubscribe 然后用OnSubscribe构建了一个Observable返回给调用者
+//    OnSubscribeLift 同时持有当前Observable的onSubscribe和需要变换的Operator
     public final <R> Observable<R> lift(final Operator<? extends R, ? super T> operator) {
         return unsafeCreate(new OnSubscribeLift<T, R>(onSubscribe, operator));
     }
@@ -10404,7 +10406,7 @@ public class Observable<T> {
      * @see #subscribeOn(Scheduler, boolean)
      */
     public final Observable<T> subscribeOn(Scheduler scheduler) {
-        return subscribeOn(scheduler, !(this.onSubscribe instanceof OnSubscribeCreate));
+        return subscribeOn(scheduler, !(this.onSubscribe instanceof OnSubscribeCreate)/*非该实例 request操作也会在该线程上面执行*/);
     }
 
     /**

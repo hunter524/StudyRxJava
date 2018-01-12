@@ -12,7 +12,31 @@ public class JavaTest {
 //        countDownLatch();
 //        exchange();
 //        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
-        dameThread();
+//        dameThread();
+//        interruptAndWait();
+//        threadJoin();
+//        throwWithOutCatchHasFinally();
+//        ExecutorService executorService = Executors.newCachedThreadPool();
+//        executorService.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                throw new IllegalArgumentException();
+//            }
+//        });
+//        ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+//        System.out.println("end ");
+//        ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+//        executorService.submit(new Runnable() {
+//            @Override
+//            public void run() {
+//                System.out.println("next run!");
+//            }
+//        });
+        new Thread(()->{
+            throw new IllegalArgumentException();
+        }).start();
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+        System.out.println("end!");
     }
 
     public static final void maxArray(){
@@ -124,5 +148,64 @@ public class JavaTest {
         ThreadInfoUtil.printThreadInfo("Main Thread");
 //        测试非Dema线程不退出 主线程不退出
         System.out.println("isDame:"+daemon+"Time:"+Calendar.getInstance().getTime());
+    }
+
+
+    /**
+     * 先interrupt再wait
+     */
+    public static final void interruptAndWait(){
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        Object wait = new Object();
+        new Thread(()->{
+            try {
+                countDownLatch.await();
+                Thread.currentThread().interrupt();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            synchronized (wait){
+                try {
+                    wait.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    System.out.println("wait interrupted");
+                }
+            }
+
+        }).start();
+        countDownLatch.countDown();
+    }
+
+    public static final void threadJoin(){
+        Thread thread = new Thread(() -> {
+            long l = System.currentTimeMillis();
+            long current;
+            while ((current = System.currentTimeMillis()) - l < 1000) {
+                System.out.println("current :" + current);
+            }
+            System.out.println("SubThread End!");
+        });
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("MainThread End!");
+    }
+
+    public static final void throwWithOutCatchHasFinally(){
+        try {
+            throw new IllegalArgumentException();
+        }
+        finally {
+            System.out.println("finally");
+        }
+    }
+
+    public static <T> void  getGeneric(){
+//        T[] a = {1};
+//        T t = a[0];
     }
 }

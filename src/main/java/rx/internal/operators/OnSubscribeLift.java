@@ -33,7 +33,7 @@ public final class OnSubscribeLift<T, R> implements OnSubscribe<R> {
     final OnSubscribe<T> parent;
 
     final Operator<? extends R, ? super T> operator;
-//上游链的调用者是Parent
+//上游链的调用者是Parent（构建调用链时使用该方法）
     public OnSubscribeLift(OnSubscribe<T> parent, Operator<? extends R, ? super T> operator) {
         this.parent = parent;
         this.operator = operator;
@@ -48,7 +48,7 @@ public final class OnSubscribeLift<T, R> implements OnSubscribe<R> {
             try {
                 // new Subscriber created and being subscribed with so 'onStart' it
                 st.onStart();
-                parent.call(st);
+                parent.call(st);/*如果上游是回溯的终点则调用当前的subscriber向下发送事件*/
             } catch (Throwable e) {
                 // localized capture of errors rather than it skipping all operators
                 // and ending up in the try/catch of the subscribe method which then

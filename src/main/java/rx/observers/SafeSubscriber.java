@@ -65,6 +65,13 @@ import rx.plugins.*;
 //SafeSubscriber 与 SerializedSubscriber的区别
 //    1、SafeSubscriber 不保证多个发射者对onNext的顺序调用和单线程调用（存在与订阅多个Observable处于不同的线程发射数据，会导致onXXX被并发调用
 //    2、SerializedSubscriber保证了订阅的onXXX会被顺序调用（同一时刻只有一个线程调用onXXX[发射循环保证同一个时刻只有一个线程调用]）
+
+//    http://static.blog.piasy.com/AdvancedRxJava/2016/08/12/pitfalls-of-operator-implementations-3/
+//    Subscriber 的 onStart 方法 每订阅一次就会执行一次
+//    第一次最下面的订阅的时候 会执行一次onStart
+//    当没有使用SafeSubscriber时 最下面的Subscriber向上传递被其他的Observable订阅则会再执行一次onStart以此类推
+//    当使用safe订阅的时候 只有在第一次 订阅会调用原始的Subscriber的onStart方法
+// 向上传递的是SafeSubscriber即使被多次订阅 SafeSubscriber不会向原始的Subscriber透传调用onStart方法
 public class SafeSubscriber<T> extends Subscriber<T> {
 
     private final Subscriber<? super T> actual;

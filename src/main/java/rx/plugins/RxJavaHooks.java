@@ -30,6 +30,7 @@ import rx.internal.operators.*;
  * prevent further changes to the hooks.
  * @since 1.3
  */
+//勾住替换一些内部的实现 包括IOScheduler 等的返回可以在该处进行替换
 public final class RxJavaHooks {
     /**
      * Prevents changing the hook callbacks when set to true.

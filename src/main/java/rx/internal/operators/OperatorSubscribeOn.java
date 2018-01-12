@@ -99,7 +99,7 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
             Observable<T> src = source;
             source = null;
             t = Thread.currentThread();
-            src.unsafeSubscribe(this);
+            src.unsafeSubscribe(this);/*Subscribe call方法不停的向上调用*/
         }
 
         @Override

@@ -33,6 +33,9 @@ import static rx.internal.util.PlatformDependent.ANDROID_API_VERSION_IS_NOT_ANDR
  * Represents a Scheduler.Worker that runs on its own unique and single-threaded ScheduledExecutorService
  * created via Executors.
  */
+//NewThreadScheduler 直接使用的是NewThreadWorker
+// EventLoopScheduler使用的是其自己继承的子类PoolWorker（然而并没有做什么事情）
+// CachedThreadScheduler 使用的是其子类ThreadWorker添加了过期时间的功能
 public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     private final ScheduledExecutorService executor;
     volatile boolean isUnsubscribed;
@@ -111,7 +114,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     }
 
     /** Purges each registered executor and eagerly evicts shutdown executors. */
-    static void purgeExecutors() {
+    static void purgeExecutors() {/*清理线程池中已经被取消的任务 如果线程池被关闭则移除引用方便垃圾回收*/
         try {
             // This prevents map.keySet to compile to a Java 8+ KeySetView return type
             // and cause NoSuchMethodError on Java 6-7 runtimes.
@@ -191,6 +194,9 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
      * @return {@code "setRemoveOnCancelPolicy(boolean)"} {@link Method}
      * or {@code null} if required {@link Method} was not found.
      */
+//    ScheduledThreadPoolExecutor 1.7 之前cancel掉的任务 不会从队列中取消
+//    1.7之后提供了一个标志位 被cancel的任务会从队列中移除掉
+//    抛出异常 比 遍历所有方法耗时更长
     static Method findSetRemoveOnCancelPolicyMethod(ScheduledExecutorService executor) {
         // The reason for the loop is to avoid NoSuchMethodException being thrown on JDK 6
         // which is more costly than looping through ~70 methods.
@@ -211,7 +217,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     public NewThreadWorker(ThreadFactory threadFactory) {
         ScheduledExecutorService exec = Executors.newScheduledThreadPool(1, threadFactory);
         // Java 7+: cancelled future tasks can be removed from the executor thus avoiding memory leak
-//        true 则不加入线程Map 1.7以下兼容代码
+//        true 则不加入线程Map 1.7以下兼容代码 手动移除队列 避免内存泄露
         boolean cancelSupported = tryEnableCancelPolicy(exec);
         if (!cancelSupported && exec instanceof ScheduledThreadPoolExecutor) {
             registerExecutor((ScheduledThreadPoolExecutor)exec);
@@ -253,7 +259,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
 
         return run;
     }
-    public ScheduledAction scheduleActual(final Action0 action, long delayTime, TimeUnit unit, CompositeSubscription parent) {
+    public ScheduledAction  scheduleActual(final Action0 action, long delayTime, TimeUnit unit, CompositeSubscription parent) {
         Action0 decoratedAction = RxJavaHooks.onScheduledAction(action);
         ScheduledAction run = new ScheduledAction(decoratedAction, parent);
         parent.add(run);
@@ -284,7 +290,7 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
 
         return run;
     }
-
+//关闭线程池取消注册
     @Override
     public void unsubscribe() {
         isUnsubscribed = true;

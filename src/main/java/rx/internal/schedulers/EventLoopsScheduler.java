@@ -55,13 +55,14 @@ public final class EventLoopsScheduler extends Scheduler implements SchedulerLif
     final ThreadFactory threadFactory;
 
     final AtomicReference<FixedSchedulerPool> pool;
-
+//全局只有一个Pool 被EventLoopScheduler持有
+//    当Computation的Worker占满时，任务无法被执行是因为任务提交到了 周期性调度的线程池中 之后任务无法被调度执行
     static final class FixedSchedulerPool {
         final int cores;
 
         final PoolWorker[] eventLoops;
-        long n;
-
+        long n;/*记录当前请求该pool的次数 便于对PoolWorker的循环使用*/
+//初始化Pool的时候一次初始化所有的PoolWorker放入数组备用
         FixedSchedulerPool(ThreadFactory threadFactory, int maxThreads) {
             // initialize event loops
             this.cores = maxThreads;
@@ -135,7 +136,9 @@ public final class EventLoopsScheduler extends Scheduler implements SchedulerLif
        PoolWorker pw = pool.get().getEventLoop();
        return pw.scheduleActual(action, -1, TimeUnit.NANOSECONDS);
     }
-
+//每次EventLoopsScheduler createWork 均创建一个Worker（EventLoopWorker）
+//每个任务对应不同的EventLoopWorker 但是EventLoopWorker 可能是持有相同的PoolWorker（NewThreadWorker）
+//NewThreadWorker真正的持有线程池去调度任务
     static final class EventLoopWorker extends Scheduler.Worker {
         private final SubscriptionList serial = new SubscriptionList();
         private final CompositeSubscription timed = new CompositeSubscription();

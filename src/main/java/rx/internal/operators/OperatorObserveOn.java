@@ -75,7 +75,10 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
         } else {
             ObserveOnSubscriber<T> parent = new ObserveOnSubscriber<T>(scheduler, child, delayError, bufferSize);
             parent.init();
-            return parent;
+            return parent;/*在Lift内部这个是返回给{OnSubscribeLift}
+            同时返回给上游的OnSubscribe#call方法
+            call向下发送事件时则优先发送给parent，parent 则进行线程切换
+            */
         }
     }
 
@@ -89,15 +92,15 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
             }
         };
     }
-
+//onXXX方法在指定的线程调用
     /** Observe through individual queue per observer. */
     static final class ObserveOnSubscriber<T> extends Subscriber<T> implements Action0 {
         final Subscriber<? super T> child;
-        final Scheduler.Worker recursiveScheduler;
+        final Scheduler.Worker recursiveScheduler;/*对应传入的Scheduler的的Worker*/
         final boolean delayError;
-        final Queue<Object> queue;
+        final Queue<Object> queue;/*队列的长度是缓存的大小 如128*/
         /** The emission threshold that should trigger a replenishing request. */
-        final int limit;
+        final int limit;/*消耗掉当前元素的3/4时，则再向生产者请求3/4的元素*/
 
         // the status of the current stream
         volatile boolean finished;
@@ -149,10 +152,10 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
                 }
 
             });
-            localChild.add(recursiveScheduler);
+            localChild.add(recursiveScheduler);/*把当前的调用关系加入下面的Subscriber*/
             localChild.add(this);
         }
-
+//现将元素执行入队操作 然后调度向下切换到指定 线程进行发射
         @Override
         public void onNext(final T t) {
             if (isUnsubscribed() || finished) {
@@ -184,7 +187,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
             finished = true;
             schedule();
         }
-
+//切换到指定线程进行数据的发送
         protected void schedule() {
             if (counter.getAndIncrement() == 0) {
                 recursiveScheduler.schedule(this);

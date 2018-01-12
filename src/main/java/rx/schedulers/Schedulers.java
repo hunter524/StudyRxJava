@@ -57,6 +57,7 @@ public final class Schedulers {
     private static final AtomicReference<Schedulers> INSTANCE = new AtomicReference<Schedulers>();
 
     private static Schedulers getInstance() {
+//        cas 结合AtomicReference 实现单列的安全性
         for (;;) {
             Schedulers current = INSTANCE.get();
             if (current != null) {

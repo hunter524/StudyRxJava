@@ -1409,4 +1409,11 @@ public class HelloTest {
             return parent;
         }
     }
+
+    @Test
+    public void analyseObserveOn(){
+        TestSubscriber<Integer> subscriber = new TestSubscriber<>();
+        Observable.range(0,512).observeOn(Schedulers.io()).subscribe(subscriber);
+        CollectionsUtil.printList(subscriber.getOnNextEvents());
+    }
 }

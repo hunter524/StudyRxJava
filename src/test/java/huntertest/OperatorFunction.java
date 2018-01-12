@@ -4,14 +4,16 @@ import huntertest.util.CollectionsUtil;
 import huntertest.util.ThreadInfoUtil;
 import org.junit.Before;
 import org.junit.Test;
-import rx.Observable;
-import rx.Observer;
+import rx.*;
 import rx.functions.Action1;
+import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
+import rx.subjects.AsyncSubject;
+import rx.subjects.Subject;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -258,6 +260,91 @@ public class OperatorFunction {
     @Test
     public void switchOnNext(){
 //        Observable.switchOnNext()
+    }
+
+    @Test
+    public void observableDefer(){
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        Observable.defer(() -> Observable.just("1","2")).subscribe(subscriber);
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+    }
+
+    @Test
+    public void merge(){
+        Observable<String> str1 = Observable
+                .just("1")
+                .delay(1, TimeUnit.SECONDS);
+        Observable<String> str2 = Observable
+                .just("2")
+                .delay(3, TimeUnit.SECONDS);
+        Observable<String> str3 = Observable
+                .just("3")
+                .delay(5, TimeUnit.SECONDS).timeout(4,TimeUnit.SECONDS);
+        Observable<String> str4 = Observable
+                .just("4")
+                .delay(2, TimeUnit.SECONDS);
+        Observable<String> str5 = Observable
+                .just("5")
+                .delay(4, TimeUnit.SECONDS);
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        Observable.mergeDelayError(str1,str2,str3,str4,str5).subscribe(subscriber);
+
+
+        ThreadInfoUtil.quietSleepThread(6,TimeUnit.SECONDS);
+        //        预期只有 1 4 2 5
+        CollectionsUtil.printList(subscriber.getOnNextEvents());
+//        预期有一个TimeOutException
+        List<Throwable> onErrorEvents = subscriber.getOnErrorEvents();
+        CollectionsUtil.printList(onErrorEvents);
+    }
+
+    @Test
+    public void single(){
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        Single.just("1").subscribe(subscriber);
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+
+        Single.just("1").concatWith(Observable.just("2").toSingle());
+
+    }
+
+    @Test
+    public void subject(){
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        AsyncSubject<String> strAsynSubj = AsyncSubject.create();/*AsyncSubject 只发射其订阅者的最后一个数据*/
+        Subject.just("1","2","3").subscribe(strAsynSubj);
+        strAsynSubj.subscribe(subscriber);
+
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+
+        CollectionsUtil.printList(onNextEvents);
+
+    }
+
+    /**
+     * 异步的Observable强制转换成同步 阻塞的Observable 内部还有各种策略保证异步相同步的转换
+     */
+    @Test
+    public void toBlocking(){
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        just1to7Str.toBlocking().first(new Func1<String, Boolean>() {
+            @Override
+            public Boolean call(String s) {
+                System.out.println("call s:"+s);
+                return s.equals("7");
+            }
+        });
+//        阻塞到数据全部发送完成 或者 抛出异常
+        just1to7Str.toBlocking().forEach(new Action1<String>() {
+            @Override
+            public void call(String s) {
+
+            }
+        });
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
     }
 
 
