@@ -204,6 +204,7 @@ public abstract class Scheduler {
      * @return the Scheduler with the customized execution behavior
      * @since 1.3
      */
+//    泛型可以支持双重继承 但是只能继承多个接口（接口和类不能混合继承 即 不能继承一个类 且 继承一个接口）
     @SuppressWarnings("unchecked")
     public <S extends Scheduler & Subscription> S when(Func1<Observable<Observable<Completable>>, Completable> combine) {
         return (S) new SchedulerWhen(combine, this);

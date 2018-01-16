@@ -2,9 +2,13 @@ package huntertest;
 
 import huntertest.util.CollectionsUtil;
 import huntertest.util.ThreadInfoUtil;
-import org.mockito.cglib.core.CollectionUtils;
+import rx.Producer;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Observable;
 import java.util.concurrent.*;
 
 public class JavaTest {
@@ -207,5 +211,9 @@ public class JavaTest {
     public static <T> void  getGeneric(){
 //        T[] a = {1};
 //        T t = a[0];
+    }
+
+    public static <T extends rx.Observable & rx.Observer & Producer>  void genericMultiyExtends(T t){
+        t.request(2);
     }
 }

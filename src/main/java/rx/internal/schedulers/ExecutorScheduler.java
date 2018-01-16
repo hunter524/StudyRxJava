@@ -29,6 +29,7 @@ import rx.subscriptions.*;
  * Note that thread-hopping is unavoidable with this kind of Scheduler as we don't know about the underlying
  * threading behavior of the executor.
  */
+//ExecutorScheduler
 public final class ExecutorScheduler extends Scheduler {
     final Executor executor;
     public ExecutorScheduler(Executor executor) {
@@ -49,7 +50,8 @@ public final class ExecutorScheduler extends Scheduler {
         final ConcurrentLinkedQueue<ScheduledAction> queue;
         final AtomicInteger wip;
 
-        final ScheduledExecutorService service;
+        final ScheduledExecutorService service;/*辅助完成周期性任务的调度*/
+        /*用自己具有周期性调度任务能力的线程池执行一次周期性调度任务，当周期来临再真正的调用用户自己设置的线程池调度真实任务*/
 
         public ExecutorSchedulerWorker(Executor executor) {
             this.executor = executor;
@@ -110,9 +112,10 @@ public final class ExecutorScheduler extends Scheduler {
                         return;
                     }
                 }
-            } while (wip.decrementAndGet() != 0);
+            } while (wip.decrementAndGet() != 0);/*队列漏 只有当把队列从0增加到1的线程才有资格执行任务*/
         }
-
+//相比 http://static.blog.piasy.com/AdvancedRxJava/2016/08/19/schedulers-2/
+//缺少了判断用户提供的线程池 是否是ScheduledThreadPoolExecutor，如果是则直接使用当前线程池执行，而避免使用调度线程池
         @Override
         public Subscription schedule(Action0 action, long delayTime, TimeUnit unit) {
             if (delayTime <= 0) {

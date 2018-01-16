@@ -46,6 +46,7 @@ import rx.subscriptions.Subscriptions;
  * @param <T>
  *            the type of the items to be buffered
  */
+//继承自Subject 则 既是Observable 也是 Observer
 public final class BufferUntilSubscriber<T> extends Subject<T, T> {
     final State<T> state;
 

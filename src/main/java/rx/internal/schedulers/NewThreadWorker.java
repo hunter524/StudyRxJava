@@ -36,6 +36,10 @@ import static rx.internal.util.PlatformDependent.ANDROID_API_VERSION_IS_NOT_ANDR
 //NewThreadScheduler 直接使用的是NewThreadWorker
 // EventLoopScheduler使用的是其自己继承的子类PoolWorker（然而并没有做什么事情）
 // CachedThreadScheduler 使用的是其子类ThreadWorker添加了过期时间的功能
+
+// 该NewThreadWorker只持有线程池，同时负责任务的调度
+
+// 如果是用自己的Executor创建的调度器 则是使用的是ExecutorScheduler
 public class NewThreadWorker extends Scheduler.Worker implements Subscription {
     private final ScheduledExecutorService executor;
     volatile boolean isUnsubscribed;
@@ -290,7 +294,10 @@ public class NewThreadWorker extends Scheduler.Worker implements Subscription {
 
         return run;
     }
-//关闭线程池取消注册
+//关闭线程池取消注册 直接关闭线程池则可以取消该线程池中已经提交的所有任务
+// 与 ExecutorScheduler中ExecutorSchedulerWorker的区别，
+// 因为ExecutorSchedulerWorker使用的是外部提供的线程池，因此我们无法也不能直接关闭线程池从而取消已经提交的任务（导致外部的任务被异常取消）
+// 因此我们需要追踪或者记录已经提交任务，在取消时只取消已经提交的任务
     @Override
     public void unsubscribe() {
         isUnsubscribed = true;

@@ -43,6 +43,7 @@ public final class OperatorTakeTimed<T> implements Operator<T, T> {
     @Override
     public Subscriber<? super T> call(Subscriber<? super T> child) {
         Worker worker = scheduler.createWorker();
+//        同时将定时调度任务加入 子订阅者的订阅关系中 子的订阅者关系取消之后也会取消该定时调度任务
         child.add(worker);
 
         TakeSubscriber<T> ts = new TakeSubscriber<T>(new SerializedSubscriber<T>(child));
@@ -73,7 +74,7 @@ public final class OperatorTakeTimed<T> implements Operator<T, T> {
             child.onCompleted();
             unsubscribe();
         }
-
+//timed take 限时的take 延迟调度自己，到达指定时间之后调用onComplete并且解除订阅关系
         @Override
         public void call() {
             onCompleted();

@@ -214,6 +214,23 @@ public class OperatorFunction {
         CollectionsUtil.printList(onNextEvents);
     }
 
+    @Test
+    public void take(){
+        Observable<String> delayed = just1to7Str
+                .map(new Func1<String, String>() {
+                    @Override
+                    public String call(String s) {
+                        return s + ":map";
+                    }
+                })
+                .delay(2, TimeUnit.SECONDS);
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        Observable.mergeDelayError(delayed,just1to7Str).take(2,TimeUnit.SECONDS).subscribe(subscriber);
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+//        预期延迟两秒发射的元素均无法获取到
+        CollectionsUtil.printList(onNextEvents);
+    }
+
     /**
      * 每次获得一次数据将数据累加之后返回
      * 预期结果 1|2|3|4|5|6|7

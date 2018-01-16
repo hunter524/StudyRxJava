@@ -48,6 +48,15 @@ import rx.plugins.*;
  * </ul>
  * </table>
  */
+// 1.CachedThreadScheduler（io） 缓存调度器，无限线程池模式，当默认空闲60s的时候，回收调度器和线程池资源
+// 2.EventLoopsScheduler（Computation）计算任务调度器，最大线程池数量是cpu个数，此时计算密集型任务避免线程切换，长期高负载时吞吐量最大
+//   始终缓存cpu个数的Scheduler，Scheduler循环被需要调度者使用，任务在提交到线程池之后等待
+// 3.TrampolineScheduler 蹦床调度器 ，当使用该调度器时同一个createWorker的Worker使用同一个优先级队列，任务执行入队操作，入队后执行哪个由优先级决定。
+//   同时任务在哪个线程被执行也是未知的，通常由队列漏首先获得漏权利的线程决定。
+// 4.ImmediateScheduler 通常在当前线程进行任务调度，不切换线程。
+// 5.NewThreadScheduler 每次构建一个新的NewThreadWorker返回。每次使用完成需要去解除订阅，否则会导致Executor内存泄露
+// 6.from 用户自己管理Executor的声明周期，Worker只管调度任务提交进入Executor。
+
 public final class Schedulers {
 
     private final Scheduler computationScheduler;

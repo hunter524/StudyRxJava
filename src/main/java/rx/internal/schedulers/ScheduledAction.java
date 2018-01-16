@@ -29,9 +29,11 @@ import rx.subscriptions.CompositeSubscription;
  * A {@code Runnable} that executes an {@code Action0} and can be cancelled. The analog is the
  * {@code Subscriber} in respect of an {@code Observer}.
  */
+//包装待调度的任务，同时管理当该任务被调度完成，或者被取消之后应该执行的清理任务
 public final class ScheduledAction extends AtomicReference<Thread> implements Runnable, Subscription {
     /** */
     private static final long serialVersionUID = -3962399486978279857L;
+//    取消订阅任务时需要执行的清理工作
     final SubscriptionList cancel;
     final Action0 action;
 
@@ -127,6 +129,7 @@ public final class ScheduledAction extends AtomicReference<Thread> implements Ru
      * prevent unnecessary self-interrupting if the unsubscription
      * happens from the same thread.
      */
+//    包装提交任务返回的Future可以在提交任务之后便于取消订阅和返回
     final class FutureCompleter implements Subscription {
         private final Future<?> f;
 
