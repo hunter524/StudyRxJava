@@ -30,9 +30,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class HelloTest {
 
@@ -1415,5 +1413,27 @@ public class HelloTest {
         TestSubscriber<Integer> subscriber = new TestSubscriber<>();
         Observable.range(0,512).observeOn(Schedulers.io()).subscribe(subscriber);
         CollectionsUtil.printList(subscriber.getOnNextEvents());
+    }
+
+    @Test
+    public void sequentialExecutorSchedulerWork(){
+        ExecutorService executorService = Executors.newCachedThreadPool();/*响应性最好的线程池*/
+        Scheduler scheduler = Schedulers.from(executorService);
+        Scheduler.Worker worker = scheduler.createWorker();
+        worker.schedule(new Action0() {
+            @Override
+            public void call() {
+               ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+            }
+        });
+        System.out.println("start schedule delay 2s task!"+Calendar.getInstance().getTime());
+//        预期该任务3s之后才可以被调度 （符合预期）
+        worker.schedule(new Action0() {
+            @Override
+            public void call() {
+                System.out.println("schedule delay 2s task Got scheduled!"+Calendar.getInstance().getTime());
+            }
+        },2,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
     }
 }

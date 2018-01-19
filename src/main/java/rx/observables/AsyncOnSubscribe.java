@@ -45,6 +45,7 @@ import rx.subscriptions.CompositeSubscription;
  *            the type of {@code Subscribers} that will be compatible with {@code this}.
  * @since 1.3 - beta
  */
+//组合多个异步的Observable 并且下发给下游订阅者
 @Beta
 public abstract class AsyncOnSubscribe<S, T> implements OnSubscribe<T> {
 

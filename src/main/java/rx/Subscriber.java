@@ -30,6 +30,8 @@ import rx.internal.util.SubscriptionList;
  * @param <T>
  *          the type of items the Subscriber expects to observe
  */
+//rxjava1 中订阅者和Producer的关系建立了很强的耦合 Subscriber承担了一部分背压和负载的处理
+//rxjava2 遵循 reactive_stream 规范将 请求数据的职责放置到了订阅关系这一层
 public abstract class Subscriber<T> implements Observer<T>, Subscription {
 
     // represents requested not set yet
@@ -94,6 +96,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
     }
 
     // TODO: 18-1-6 不能在持有锁时调用unsubscribe 为什么？
+//    rxjava2 subscriber 不再支持取消操作
     @Override
     public final void unsubscribe() {
         subscriptions.unsubscribe();

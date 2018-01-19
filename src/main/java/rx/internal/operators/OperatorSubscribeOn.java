@@ -28,6 +28,12 @@ import rx.functions.Action0;
  * @param <T> the value type of the actual source
  */
 //Subscribe向上订阅的call方法在 subscribeOn线程调用
+//    通常其他的OnSubscribe 命名方式是 OnSubscribeXXX
+//    只有subscribeOn 和 observeOn 执行的是 OperatorSubscribeOn（其实是OnSubscribe） 和 OperatorObserverOn（实际是lift操作）
+//    lift操作其实时由OnSubscribeLift操作进行包装Operator的
+//    lift使用OnSubscribeLift 创建一个Observable 返回构建调用链
+
+
 public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
 
     final Scheduler scheduler;
@@ -41,13 +47,13 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
     }
 
     @Override
-    public void call(final Subscriber<? super T> subscriber) {
+    public void call(final Subscriber<? super T> subscriber/*下游的订阅者*/) {
         final Worker inner = scheduler.createWorker();
 
         SubscribeOnSubscriber<T> parent = new SubscribeOnSubscriber<T>(subscriber, requestOn, inner, source);
 //        Subscriber是从下向call 实际订阅之后是从上向下 因此当前的Subscriber是上面的Parent
         subscriber.add(parent);
-        subscriber.add(inner);
+        subscriber.add(inner);/*调度关系也会被加入下游的订阅者中，这样只要切换了操作符，即可取消订阅关系*/
 
         inner.schedule(parent);
     }
@@ -104,12 +110,15 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
 
         @Override
         public void setProducer(final Producer p) {
+//            向线程切换的操作符设置Producer时，会将Producer包装一层设置给真实的订阅者
+//            包装完成的功能是将 下面进行request请求 转换到正确的subscribeOn线程（不进行转换则发射操作会在错误的线程进行）
             actual.setProducer(new Producer() {
                 @Override
                 public void request(final long n) {
                     if (t == Thread.currentThread() || !requestOn) {
                         p.request(n);
                     } else {
+//                        将request也要调度到当前的Worker线程上面来
                         worker.schedule(new Action0() {
                             @Override
                             public void call() {

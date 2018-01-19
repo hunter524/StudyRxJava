@@ -44,6 +44,14 @@ import rx.subscriptions.Subscriptions;
  * @param <T>
  *            the type of the items emitted by the Observable
  */
+//Observable 分为冷 和 热 以及 每次订阅创建不同的Observable用于发射数据
+//    冷：创建完成不发射数据，只有当有订阅者时才发射数据
+//    热：一旦创建完成即开始发射数据，无论是否存在订阅者
+//    defer：只有当有订阅者是，才创建原始的发射者的Observable，不同的订阅者得到的是不同的原始发射数据的Observable
+
+//    构建Observable从上游向上游构建调用链，每次执行操作符返回的是一个新的Observable
+//    订阅时是从下游向上游调用onSubscribe的call方法
+//    调用到任意一层时可以终止向上订阅，进而直接向下发送数据
 public class Observable<T> {
 
     final OnSubscribe<T> onSubscribe;
@@ -10439,6 +10447,8 @@ public class Observable<T> {
      * @see #subscribeOn(Scheduler)
      * @since 1.3
      */
+//    两次调用SubscribeOn 距离上游最近的一个subscribeOn 决定距离他最近的一个call方法
+//    a.subscribeOn(1).subscribeOn(2) 2只能决定1的call调度方法在什么地方调用，1最终决定的是a的call方法在什么地方调用
     public final Observable<T> subscribeOn(Scheduler scheduler, boolean requestOn) {
         if (this instanceof ScalarSynchronousObservable) {
             return ((ScalarSynchronousObservable<T>)this).scalarScheduleOn(scheduler);

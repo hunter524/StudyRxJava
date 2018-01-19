@@ -218,6 +218,7 @@ public final class Subscribers {
      *         manage unsubscription.
      * @since 1.1.0
      */
+//    TODO：// 2018年01月16日11:27:31 包装一层之后便有背压功能的原理分析
     public static <T> Subscriber<T> wrap(final Subscriber<? super T> subscriber) {
         return new Subscriber<T>(subscriber) {
 

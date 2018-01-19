@@ -24,6 +24,7 @@ import rx.internal.operators.SingleLiftObservableOperator.WrapSubscriberIntoSing
  *
  * @param <T> the value type
  */
+//将Single转化为普通的Observable从而执行更多的数据操作
 public final class SingleToObservable<T> implements Observable.OnSubscribe<T> {
 
     final Single.OnSubscribe<T> source;

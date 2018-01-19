@@ -58,6 +58,7 @@ public abstract class Scheduler {
      * <p>
      * Unsubscribing the {@link Worker} cancels all outstanding work and allows resources cleanup.
      */
+//    一定需要保证的是提交到同一个Worker的任务，一定要严格按照提交顺序执行
     public abstract static class Worker implements Subscription {
 
         /**

@@ -25,7 +25,7 @@ import rx.exceptions.*;
  *
  * @param <T> the value type
  */
-public final class SingleProducer<T> extends AtomicBoolean implements Producer {
+public class SingleProducer<T> extends AtomicBoolean implements Producer {
     /** */
     private static final long serialVersionUID = -3353584923995471404L;
     /** The child subscriber. */

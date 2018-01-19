@@ -18,6 +18,7 @@ package rx.internal.util;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
+//该线程池创建的是守护线程
 public final class RxThreadFactory extends AtomicLong implements ThreadFactory {
     /** */
     private static final long serialVersionUID = -8841098858898482335L;

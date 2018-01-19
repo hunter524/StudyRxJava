@@ -9,6 +9,7 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.internal.producers.SingleProducer;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -361,6 +363,126 @@ public class OperatorFunction {
             }
         });
         List<String> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+
+        /*转换成上游的Single*//*上游的Single*/
+        Single.just("1").map(value-> "2").flatMap(value-> /*Observable.just("3").mergeWith(Observable.just("4")).toSingle()*/Single.just("3"))
+        .compose(stringSingle -> {
+            String value = stringSingle
+                    .toBlocking()
+                    .value();
+
+            return Single.just(Integer.valueOf(value)+100);
+        }).subscribe(new SingleSubscriber<Integer>() {
+            @Override
+            public void onSuccess(Integer integer) {
+                System.out.println("Single s 1 compose to Integer:"+integer.toString());
+            }
+
+            @Override
+            public void onError(Throwable error) {
+
+            }
+        });
+
+        Single.just("1").zipWith(Single.just("2"),(a,b)->{
+            return a+b;
+        }).subscribe(new SingleSubscriber<String>() {
+            @Override
+            public void onSuccess(String s) {
+                System.out.println(s);
+            }
+
+            @Override
+            public void onError(Throwable error) {
+
+            }
+        });
+
+    }
+
+    /**
+     * 预期有顺序的链接观察者 即使不同观察者的发射顺序是未知的
+     * 异步操作符可能什么也没接受到就已经结束了
+     * 链接两个操作时订阅者 不切换线程 则默认在concat的线程执行onXXX操作
+     */
+    @Test
+    public void concat(){
+        Observable<String> delay1 = just1to7Str.delay(1, TimeUnit.SECONDS);
+        Observable<String> delay2 = just1to7Str
+                .map(value -> value + "2")
+                .delay(2, TimeUnit.SECONDS);
+        TestSubscriber<String> subscriber = new TestSubscriber<>();
+        delay2.concatWith(delay1).subscribe(subscriber);
+        List<String> onNextEvents = subscriber.getOnNextEvents();
+
+        ThreadInfoUtil.quietSleepThread(3100,TimeUnit.MILLISECONDS);
+//        预期 12 22 32 42 52 62 72 1 2 3 4 5 6 7
+        String lastThread = subscriber
+                .getLastSeenThread()
+                .toString();
+        System.out.println("lastThread:"+lastThread);
+        CollectionsUtil.printList(onNextEvents);
+    }
+
+    @Test
+    public void fromXXX(){
+        TestSubscriber<String> callableSubscriber = new TestSubscriber<>();
+        Observable.fromCallable(()->"from callable!").subscribe(callableSubscriber);
+        List<String> onNextEvents1 = callableSubscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents1);
+
+        TestSubscriber<String> subscriberSyncOnSubscribe = new TestSubscriber<>();
+        Observable.create(new SyncOnSubscribe<Integer,String>() {
+            @Override
+            protected Integer generateState() {
+                return Integer.valueOf(1);
+            }
+
+            @Override
+            protected Integer next(Integer state, Observer<? super String> observer) {
+                observer.onNext(state.toString());
+                if (state == 10){
+                    observer.onCompleted();
+                }
+                return ++state;
+            }
+        }).subscribe(subscriberSyncOnSubscribe);
+        List<String> onNextEvents = subscriberSyncOnSubscribe.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);
+    }
+
+
+    @Test
+    public void analyseCallChain() {
+        TestSubscriber<Object> subscriber1 = new TestSubscriber<>();
+        Observable
+                .just("1")
+                .map(str -> str + str)
+                .lift(subscriber -> new Subscriber<String>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(String s) {
+                        SingleProducer<String> stringSingleProducer = new SingleProducer<>(subscriber, "5555");
+                        subscriber.setProducer(stringSingleProducer);
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.computation())
+                .subscribe(subscriber1);
+
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+        List<Object> onNextEvents = subscriber1.getOnNextEvents();
+//        预期应该只有5555
         CollectionsUtil.printList(onNextEvents);
     }
 

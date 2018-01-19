@@ -55,7 +55,7 @@ import rx.plugins.*;
 //   同时任务在哪个线程被执行也是未知的，通常由队列漏首先获得漏权利的线程决定。
 // 4.ImmediateScheduler 通常在当前线程进行任务调度，不切换线程。
 // 5.NewThreadScheduler 每次构建一个新的NewThreadWorker返回。每次使用完成需要去解除订阅，否则会导致Executor内存泄露
-// 6.from 用户自己管理Executor的声明周期，Worker只管调度任务提交进入Executor。
+// 6.from 用户自己管理Executor的声明周期，Worker只管调度任务提交进入Executor。使用的是ExecutorScheduler 和 ExecutorSchedulerWorker
 
 public final class Schedulers {
 

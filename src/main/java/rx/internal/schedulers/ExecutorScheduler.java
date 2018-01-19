@@ -55,7 +55,7 @@ public final class ExecutorScheduler extends Scheduler {
 
         public ExecutorSchedulerWorker(Executor executor) {
             this.executor = executor;
-            this.queue = new ConcurrentLinkedQueue<ScheduledAction>();
+            this.queue = new ConcurrentLinkedQueue<ScheduledAction>();/*存放用户提交过来的任务，在自己的run方法中取用执行*/
             this.wip = new AtomicInteger();
             this.tasks = new CompositeSubscription();
             this.service = GenericScheduledExecutorService.getInstance();
@@ -78,7 +78,12 @@ public final class ExecutorScheduler extends Scheduler {
                     // there is no clear way to cancel this schedule from individual tasks
                     // so even if executor is an ExecutorService, we can't associate the future
                     // returned by submit() with any particular ScheduledAction
-                    executor.execute(this);
+
+//                    为了保证顺序提交过来的任务是按照提交顺序执行
+//                    向用户设置的线程池提交的任务只要ExecutorSchedulerWorker自己（自己的run方法）
+//                    因为如果把所有用户提交过来的任务都向线程池提交则这些任务无法保证按照提交顺序执行（可能存在并发执行）
+//                    除非像系统的默认的调度器一样，使用的是单线程的ScheduledThreadPoolExecutor
+                    executor.execute(this);/*向线程池提交任务，可能由于线程池的拒绝策略导致线程池抛出拒绝服务异常*/
                 } catch (RejectedExecutionException t) {
                     // cleanup if rejected
                     tasks.remove(ea);
@@ -100,6 +105,8 @@ public final class ExecutorScheduler extends Scheduler {
                     queue.clear();
                     return;
                 }
+//                此处获取的sa即为schedule时提交的ea 执行前先检查sa的状态，查看是否已经被取消，如果已经被取消则放弃执行
+//                同时还需要检查当前Worker是否已经被放弃执行，如果当前Worker已经被解除订阅，则关联当前Worker的所有任务放弃执行（清空任务队列操作）
                 ScheduledAction sa = queue.poll();
                 if (sa == null) {
                     return;
@@ -112,7 +119,7 @@ public final class ExecutorScheduler extends Scheduler {
                         return;
                     }
                 }
-            } while (wip.decrementAndGet() != 0);/*队列漏 只有当把队列从0增加到1的线程才有资格执行任务*/
+            } while (wip.decrementAndGet() != 0);/*队列漏 只有当把队列从0增加到1的线程才有资格执行任务 当前任务执行完成之后检查是否有并行的任务提交过来*/
         }
 //相比 http://static.blog.piasy.com/AdvancedRxJava/2016/08/19/schedulers-2/
 //缺少了判断用户提供的线程池 是否是ScheduledThreadPoolExecutor，如果是则直接使用当前线程池执行，而避免使用调度线程池
@@ -145,7 +152,7 @@ public final class ExecutorScheduler extends Scheduler {
                         return;
                     }
                     // schedule the real action non-delayed
-                    Subscription s2 = schedule(decorated);
+                    Subscription s2 = schedule(decorated);/*此处的任务调度延时并不精准（响应性低），因为如果此时调度这个任务，并且顺序执行，可能存在于前面的任务调度占用时间过长 从而导致该处延时不准确*/
                     mas.set(s2);
                     // unless the worker is unsubscribed, we should get a new ScheduledAction
                     if (s2.getClass() == ScheduledAction.class) {
