@@ -41,6 +41,9 @@ import rx.subscriptions.CompositeSubscription;
  * @param <R>
  *            the result type
  */
+
+//zip操作符的ZipFunction在tick操作时执行，tick是多个等待zip的Observable被多个InnerSubscriber订阅时均会执行的操作
+//要确保zipFunction在同一个线程执行，则需要确保多个待合并的Observable其订阅者在同一个线程
 public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
     /*
      * Raw types are used so we can use a single implementation for all arities such as zip(t1, t2) and zip(t1, t2, t3) etc.
@@ -140,7 +143,7 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
                 child.onCompleted();
             } else {
                 started = true;
-                zipper.start(observables, producer);
+                zipper.start(observables, producer);/*接收到上游下发的Observable数组*/
             }
         }
 
@@ -164,14 +167,14 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
         }
 
     }
-
+//合并操作，执行订阅上游下发的Observable数组 start方法
     static final class Zip<R> extends AtomicLong {
         /** */
         private static final long serialVersionUID = 5995274816189928317L;
 
         final Observer<? super R> child;
         private final FuncN<? extends R> zipFunction;
-        private final CompositeSubscription childSubscription = new CompositeSubscription();
+        private final CompositeSubscription childSubscription = new CompositeSubscription()/*多个待zip的内部Observable的订阅关系*/;
 
         static final int THRESHOLD = (int) (RxRingBuffer.SIZE * 0.7);
         int emitted; // not volatile/synchronized as accessed inside COUNTER_UPDATER block
@@ -187,10 +190,10 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
         }
 
         @SuppressWarnings("unchecked")
-        public void start(@SuppressWarnings("rawtypes") Observable[] os, AtomicLong requested) {
+        public void start(@SuppressWarnings("rawtypes") Observable[] os, AtomicLong requested/*记录已经请求的数量*/) {
             final Object[] subscribers = new Object[os.length];
             for (int i = 0; i < os.length; i++) {
-                InnerSubscriber io = new InnerSubscriber();
+                InnerSubscriber io = new InnerSubscriber()/*内部的Observable的订阅者*/;
                 subscribers[i] = io;
                 childSubscription.add(io);
             }
@@ -236,7 +239,7 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
                                 continue;
                             }
 
-                            if (buffer.isCompleted(n)) {
+                            if (buffer.isCompleted(n)) {/*如果zip的多个Observable有一个下发了onCompleted则整条链均解除订阅关系*/
                                 child.onCompleted();
                                 // we need to unsubscribe from all children since children are
                                 // independently subscribed
@@ -293,10 +296,10 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
 //        Zip的内部订阅者 会订阅前面几个的Observable缓存结果
 //        当多个Observable的第1,2,...个结果均发出之后调用一次合并方法向下游再发送一次数据
 
-//        zip操作符会有被压操作 防止发射数据过多导致 观察者来不及处理的问题
+//        zip操作符会有被压操作 防止发射数据过多导致 观察者来不及处理的问题（为Zip的非静态内部类）
         final class InnerSubscriber extends Subscriber {
             // Concurrent* since we need to read it from across threads
-            final RxRingBuffer items = RxRingBuffer.getSpmcInstance();
+            final RxRingBuffer items = RxRingBuffer.getSpmcInstance();/*每一个Subscriber内部缓存了一个zip操作符发射出来的数据*/
 
             @Override
             public void onStart() {
@@ -330,7 +333,7 @@ public final class OperatorZip<R> implements Operator<R, Observable<?>[]> {
                 } catch (MissingBackpressureException e) {
                     onError(e);
                 }
-                tick();
+                tick();/*外部类Zip的方法*/
             }
         }
     }

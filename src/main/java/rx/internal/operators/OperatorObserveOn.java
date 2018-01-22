@@ -116,7 +116,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
         Throwable error;
 
         /** Remembers how many elements have been emitted before the requests run out. */
-        long emitted;
+        long emitted;/*记录已经发射的元素 ！！该变量是单线程顺序访问 也就是1个线程的ScheduleThreadPool线程池*/
 
         // do NOT pass the Subscriber through to couple the subscription chain ... unsubscribing on the parent should
         // not prevent anything downstream from consuming, which will happen if the Subscription is chained
@@ -161,7 +161,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
             if (isUnsubscribed() || finished) {
                 return;
             }
-            if (!queue.offer(NotificationLite.next(t))) {
+            if (!queue.offer(NotificationLite.next(t))) {/*队列满了则会抛出背压异常*/
                 onError(new MissingBackpressureException());
                 return;
             }
@@ -189,7 +189,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
         }
 //切换到指定线程进行数据的发送
         protected void schedule() {
-            if (counter.getAndIncrement() == 0) {
+            if (counter.getAndIncrement() == 0) {/*此处是队列漏*/
                 recursiveScheduler.schedule(this);
             }
         }
@@ -245,7 +245,7 @@ public final class OperatorObserveOn<T> implements Operator<T, T> {
 
                 emitted = currentEmission;
                 missed = counter.addAndGet(-missed);
-                if (missed == 0L) {
+                if (missed == 0L) {/*不存在未发射的元素时跳出队列漏*/
                     break;
                 }
             }

@@ -487,4 +487,70 @@ public class OperatorFunction {
     }
 
 
+    @Test
+    public void analyseZip(){
+        Observable<Integer> just1Delay1 = Observable
+                .just(1,1,1)
+                .delay(3, TimeUnit.SECONDS).observeOn(Schedulers.computation());
+
+        Observable<Integer> just2Delay2 = Observable
+                .just(2,2)
+                .delay(2, TimeUnit.SECONDS).observeOn(Schedulers.io());
+
+        TestSubscriber<Integer> subscriber = new TestSubscriber<>();
+        Observable.zip(just1Delay1, just2Delay2, new Func2<Integer, Integer, Integer>() {
+            @Override
+            public Integer call(Integer integer, Integer integer2) {
+//                ！！！预期在延迟时间最长的线程
+                ThreadInfoUtil.printThreadInfo("zip func:");
+                return integer+integer2;
+            }
+        }).observeOn(Schedulers.io()).subscribe(subscriber);
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+
+        List<Integer> onNextEvents = subscriber.getOnNextEvents();
+        CollectionsUtil.printList(onNextEvents);/*预期持有的元素为待合并的最少的元素*/
+
+    }
+
+    @Test
+    public void analyseBackPressure(){
+        Observable.create(new Observable.OnSubscribe<String>() {
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+                Integer i = 0;
+                while (true){
+                    System.out.println("call onNext i:"+i.toString());
+                    subscriber.onNext((i++).toString());
+                    if (i>100000){
+                        System.out.println("called than 10_0000");
+                        break;
+                    }
+                    if (subscriber.isUnsubscribed()){/*抛出异常之后child会解除订阅关系，发射者需要关注订阅者是否已经解除订阅*/
+                        System.out.println("child is UnSubscribed");
+                        break;
+                    }
+                }
+            }
+        }).subscribeOn(Schedulers.computation()).observeOn(Schedulers.io())/*预期此处会抛出背压异常*/.subscribe(new Subscriber<String>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();/*MissingBackPressureException异常会抛出在onError中*/
+            }
+
+            @Override
+            public void onNext(String s) {
+                System.out.println("onNext s:"+s);
+                ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+            }
+        });
+        ThreadInfoUtil.quietSleepThread(10,TimeUnit.SECONDS);
+    }
+
+
 }

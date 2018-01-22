@@ -33,6 +33,8 @@ import rx.functions.Action0;
 //    lift操作其实时由OnSubscribeLift操作进行包装Operator的
 //    lift使用OnSubscribeLift 创建一个Observable 返回构建调用链
 
+//    subscribeOn使用的是OnSubscribe创建Observable的方式
+//    ObserveOn使用的是lift加上OperatorObserveOn 多了一层OnSubscribeLift包装Operator的操作
 
 public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
 
@@ -55,7 +57,7 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
         subscriber.add(parent);
         subscriber.add(inner);/*调度关系也会被加入下游的订阅者中，这样只要切换了操作符，即可取消订阅关系*/
 
-        inner.schedule(parent);
+        inner.schedule(parent)/*调度call方法进入指定的线程*/;
     }
 
     static final class SubscribeOnSubscriber<T> extends Subscriber<T> implements Action0 {
@@ -105,7 +107,7 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
             Observable<T> src = source;
             source = null;
             t = Thread.currentThread();
-            src.unsafeSubscribe(this);/*Subscribe call方法不停的向上调用*/
+            src.unsafeSubscribe(this);/*src代表上游的Observable，Subscribe call方法不停的向上调用*/
         }
 
         @Override
