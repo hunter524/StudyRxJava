@@ -18,6 +18,7 @@ import io.reactivex.annotations.Nullable;
 import io.reactivex.internal.functions.ObjectHelper;
 import io.reactivex.internal.observers.BasicQueueDisposable;
 
+//一个Observable对应 一个Disposable
 public final class ObservableFromArray<T> extends Observable<T> {
     final T[] array;
     public ObservableFromArray(T[] array) {

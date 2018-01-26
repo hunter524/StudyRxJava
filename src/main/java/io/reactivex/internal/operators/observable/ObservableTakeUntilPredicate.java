@@ -19,7 +19,7 @@ import io.reactivex.exceptions.Exceptions;
 import io.reactivex.functions.Predicate;
 import io.reactivex.internal.disposables.DisposableHelper;
 import io.reactivex.plugins.RxJavaPlugins;
-
+//take until并没有使用Operator 进行变换操作 而是采用了Observer判断转发的模式进行控制 untimed
 public final class ObservableTakeUntilPredicate<T> extends AbstractObservableWithUpstream<T, T> {
     final Predicate<? super T> predicate;
     public ObservableTakeUntilPredicate(ObservableSource<T> source, Predicate<? super T> predicate) {
@@ -45,14 +45,14 @@ public final class ObservableTakeUntilPredicate<T> extends AbstractObservableWit
         @Override
         public void onSubscribe(Disposable s) {
             if (DisposableHelper.validate(this.s, s)) {
-                this.s = s;
-                actual.onSubscribe(this);
+                this.s = s;/*source返回给当前订阅者的Disposable*/
+                actual.onSubscribe(this);/*给下游的订阅者返回的是 自己的Disposable，*/
             }
         }
 
         @Override
         public void dispose() {
-            s.dispose();
+            s.dispose();/*下游取消时 需要取消上游的订阅者*/
         }
 
         @Override
@@ -75,7 +75,7 @@ public final class ObservableTakeUntilPredicate<T> extends AbstractObservableWit
                 }
                 if (b) {
                     done = true;
-                    s.dispose();
+                    s.dispose();/*取消订阅上游 不应该取消订阅下游 因为下游可能是延迟发射的，如果上游取消了下游则会导致下游无法接受到上游已经发送的事件*/
                     actual.onComplete();
                 }
             }

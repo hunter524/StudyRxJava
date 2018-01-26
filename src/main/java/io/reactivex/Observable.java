@@ -94,6 +94,23 @@ import io.reactivex.schedulers.*;
  * @see Flowable
  * @see io.reactivex.observers.DisposableObserver
  */
+//rxjava1:
+// 1、每个Observable持有持有一个OnSubscribe操作符的变换在OnSubscribe中进行变换
+// 2、订阅操作始终在Observable中，并且同步订阅的Observable无法取消发射（下游在上游 执行完发射之前获取不到订阅关系）
+// 3、Producer的职责是管理负载和背压。Subscription只是管理订阅者的关系
+//rxjava2：
+// 1、不同的操作符继承Observable实现自己的逻辑（感觉rxjava2的设计更便于问题排查）
+// 2、订阅操作在每个操作符自己实现的Observable内，并且返回每个操作符自己的Disposable。在订阅者内部onXXX时便可以根据获得的数据决定是否取消上游发射数据及订阅关系
+// 3、Subscription既管理负载和背压也管理订阅关系。（reactivestreams规范的Subscription没有判断是否已经解除订阅关系的函数，因此rxjava2中自己定义了Disposable接口用于判断是否已经解除订阅）
+
+//    取消订阅的操作既可能是从上游向下游发起取消操作，也可能是从下游开始向上游取消订阅
+
+//    队列漏是存在锁的竞争关系的
+//    发射者循环是非阻塞的算法执行发射操作的
+
+
+// TODO: 18-1-23  rxjava2 订阅关系是如何管理的？ Producer的背压管理 是如何被Subscription所代替的？
+
 public abstract class Observable<T> implements ObservableSource<T> {
 
     /**
@@ -5276,7 +5293,7 @@ public abstract class Observable<T> implements ObservableSource<T> {
      * @see <a href="http://reactivex.io/documentation/operators/buffer.html">ReactiveX operators documentation: Buffer</a>
      */
     @CheckReturnValue
-    @SchedulerSupport(SchedulerSupport.NONE)
+    @SchedulerSupport(SchedulerSupport.NONE)/*将上游发射的每一个数据缓存聚合到一起再发射 skip代表跳过的数据*/
     public final Observable<List<T>> buffer(int count, int skip) {
         return buffer(count, skip, ArrayListSupplier.<T>asCallable());
     }

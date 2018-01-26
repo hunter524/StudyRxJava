@@ -30,6 +30,7 @@ import io.reactivex.plugins.RxJavaPlugins;
  *
  * @param <T> the value type
  */
+//串行化 上游对下游 onXXX方法的访问 避免并发调用onXXX的情况发生
 public final class SerializedSubscriber<T> implements FlowableSubscriber<T>, Subscription {
     final Subscriber<? super T> actual;
     final boolean delayError;
@@ -77,7 +78,7 @@ public final class SerializedSubscriber<T> implements FlowableSubscriber<T>, Sub
             return;
         }
         if (t == null) {
-            subscription.cancel();
+            subscription.cancel();/*在Rxjava2 中不允许null值（个人感觉很明智，如果要传null就应该传一个null的哨兵）*/
             onError(new NullPointerException("onNext called with null. Null values are generally not allowed in 2.x operators and sources."));
             return;
         }
