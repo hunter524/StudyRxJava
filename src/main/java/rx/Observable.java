@@ -209,6 +209,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/create.html">ReactiveX operators documentation: Create</a>
      * @since 1.2
      */
+
     public static <S, T> Observable<T> create(SyncOnSubscribe<S, T> syncOnSubscribe) {
         return unsafeCreate(syncOnSubscribe);
     }

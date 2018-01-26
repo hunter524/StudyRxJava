@@ -49,7 +49,7 @@ public final class ProducerArbiter implements Producer {
             return;
         }
 //        如果正在发射数据 也不会更新requested值 只是将missedRequested值进行递增
-        synchronized (this) {
+        synchronized (this) {/*发射循环需要执行加锁操作，队列漏是不需要执行加锁操作的*/
             if (emitting) {
                 missedRequested += n;
                 return;
@@ -71,7 +71,7 @@ public final class ProducerArbiter implements Producer {
                 p.request(n);
             }
 
-            emitLoop();
+            emitLoop();/*如果发射过程中抛出异常，则当前发射流程抛出异常则执行emitting置位为false停止发射*/
             skipFinal = true;
         } finally {
             if (!skipFinal) {

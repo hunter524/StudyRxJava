@@ -1,14 +1,12 @@
 package huntertest;
 
 import huntertest.util.CollectionsUtil;
+import huntertest.util.MemoryUtil;
 import huntertest.util.ThreadInfoUtil;
 import rx.Producer;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.List;
-import java.util.Observable;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class JavaTest {
@@ -36,11 +34,28 @@ public class JavaTest {
 //                System.out.println("next run!");
 //            }
 //        });
-        new Thread(()->{
-            throw new IllegalArgumentException();
-        }).start();
-        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
-        System.out.println("end!");
+//        new Thread(()->{
+//            throw new IllegalArgumentException();
+//        }).start();
+//        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+//        System.out.println("end!");
+        testMemonry();
+    }
+
+    /**
+     * 基础类型数组分配锁占用的空间
+     */
+    public static void testMemonry(){
+        MemoryUtil.printUsedMemory();
+        double[] doubles = new double[10_0000];/*64bit = 8B*10w*/
+        MemoryUtil.printUsedMemory();
+        String[] strings = new String[10_0000];/*10w对象数组占用的空间大小 4B*10w 对象数组分配的只是指针*/
+        MemoryUtil.printUsedMemory();
+        Random random = new Random();
+        int i = random.nextInt(10);
+        doubles[i] = 10000000;
+        strings[i] = "hello memory!";
+        System.out.println(doubles[i]*Math.random());/*确保编译器分配这个空间*/
     }
 
     public static final void maxArray(){
