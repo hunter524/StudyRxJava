@@ -35,6 +35,7 @@ import io.reactivex.internal.util.BackpressureHelper;
 /**
  * Arbitrates requests and cancellation between Subscriptions.
  */
+//订阅仲裁者
 public class SubscriptionArbiter extends AtomicInteger implements Subscription {
 
     private static final long serialVersionUID = -2189523197179400958L;
@@ -56,7 +57,7 @@ public class SubscriptionArbiter extends AtomicInteger implements Subscription {
     final AtomicLong missedProduced;
 
     volatile boolean cancelled;
-
+//requested 是Long的最大值则认为是无界的请求
     protected boolean unbounded;
 
     public SubscriptionArbiter() {

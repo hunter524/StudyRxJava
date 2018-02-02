@@ -254,7 +254,7 @@ public final class ObservableZip<T, R> extends Observable<R> {
     static final class ZipObserver<T, R> implements Observer<T> {
 
         final ZipCoordinator<T, R> parent;
-        final SpscLinkedArrayQueue<T> queue;
+        final SpscLinkedArrayQueue<T> queue;/*包权限，那么当前包下的类均可以访问，即Parent可以访问*/
 
         volatile boolean done;
         Throwable error;

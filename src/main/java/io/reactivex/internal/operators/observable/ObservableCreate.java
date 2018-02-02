@@ -23,7 +23,9 @@ import io.reactivex.internal.fuseable.SimpleQueue;
 import io.reactivex.internal.queue.SpscLinkedArrayQueue;
 import io.reactivex.internal.util.AtomicThrowable;
 import io.reactivex.plugins.RxJavaPlugins;
-
+//create 操作符创建的是ObservableCreate
+//实际订阅时（SubscribeActual）时使用CreateEmitter包装一次原始订阅者的observer
+//然后将ObservableEmitter传递给ObservableOnSubscribe执行发射操作
 public final class ObservableCreate<T> extends Observable<T> {
     final ObservableOnSubscribe<T> source;
 
@@ -37,6 +39,7 @@ public final class ObservableCreate<T> extends Observable<T> {
         observer.onSubscribe(parent);
 
         try {
+//            最终会去透传调用SubscribeActual，即订阅最终还是从上向下订阅
             source.subscribe(parent);
         } catch (Throwable ex) {
             Exceptions.throwIfFatal(ex);

@@ -60,7 +60,7 @@ public final class ObservableRange extends Observable<Integer> {
             }
             Observer<? super Integer> actual = this.actual;
             long e = end;
-            for (long i = index; i != e && get() == 0; i++) {
+            for (long i = index; i != e && get() == 0/*判断是否解除了订阅*/; i++) {
                 actual.onNext((int)i);
             }
             if (get() == 0) {

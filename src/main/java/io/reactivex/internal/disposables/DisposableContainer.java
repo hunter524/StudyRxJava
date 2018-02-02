@@ -19,6 +19,7 @@ import io.reactivex.disposables.Disposable;
  * Common interface to add and remove disposables from a container.
  * @since 2.0
  */
+//订阅关系资源管理 对比于 rxjava1中的CompositeSubscription
 public interface DisposableContainer {
 
     /**

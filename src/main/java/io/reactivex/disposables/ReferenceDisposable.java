@@ -24,6 +24,7 @@ import io.reactivex.internal.functions.ObjectHelper;
  *
  * @param <T> the type contained
  */
+//包装Subscription使其适用与Disposable接口
 abstract class ReferenceDisposable<T> extends AtomicReference<T> implements Disposable {
 
     private static final long serialVersionUID = 6537757548749041217L;

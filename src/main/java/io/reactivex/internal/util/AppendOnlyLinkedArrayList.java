@@ -106,7 +106,7 @@ public class AppendOnlyLinkedArrayList<T> {
      * @param subscriber the subscriber to emit the events to
      * @return true if a terminal event has been reached
      */
-    public <U> boolean accept(Subscriber<? super U> subscriber) {
+    public <U> boolean accept(Subscriber<? super U> subscriber)/*accept 访问者模式的变种 可以accept Subscriber 也可以accept Observer*/ {
         Object[] a = head;
         final int c = capacity;
         while (a != null) {
