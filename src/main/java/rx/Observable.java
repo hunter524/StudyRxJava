@@ -52,6 +52,12 @@ import rx.subscriptions.Subscriptions;
 //    构建Observable从上游向上游构建调用链，每次执行操作符返回的是一个新的Observable
 //    订阅时是从下游向上游调用onSubscribe的call方法
 //    调用到任意一层时可以终止向上订阅，进而直接向下发送数据
+
+//    都还没有设置 Producer，也就不会有请求，没有收到请求就发出了数据，这就是没有遵守 backpressure 的要求
+//    backpressure的要求是没有请求则就没有要求数据发射（请求多少个数据即发射多少个数据）
+
+// TODO: 18-2-2  Obsubscribe 和 Operator 是否有明确的职责划分和定义？
+//    http://static.blog.piasy.com/AdvancedRxJava/2016/10/06/operator-internals-s-amb-ambwith/ 介绍操作附的文章将 OnSubscribeAmb也定义为操作附
 public class Observable<T> {
 
     final OnSubscribe<T> onSubscribe;
@@ -444,6 +450,7 @@ public class Observable<T> {
      *         emitted an item or sent a termination notification
      * @see <a href="http://reactivex.io/documentation/operators/amb.html">ReactiveX operators documentation: Amb</a>
      */
+//    ambiguous 转发第一个发射数据的Observable的所有数据，同时解除订阅所有的其他的Observable
     public static <T> Observable<T> amb(Iterable<? extends Observable<? extends T>> sources) {
         return unsafeCreate(OnSubscribeAmb.amb(sources));
     }

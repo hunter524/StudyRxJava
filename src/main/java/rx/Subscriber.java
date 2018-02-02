@@ -153,7 +153,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
             if (producer != null) {
                 producerToRequestFrom = producer;
             } else {
-                addToRequested(n);
+                addToRequested(n);/*解决的是Producer还没有set此时订阅已经request的问题，保留request的大小，然后等Producer被set之后向Producer请求这个数据*/
                 return;
             }
         }

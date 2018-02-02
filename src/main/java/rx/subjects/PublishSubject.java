@@ -48,6 +48,9 @@ import rx.internal.operators.BackpressureUtils;
  * @param <T>
  *          the type of items observed and emitted by the Subject
  */
+//并没有找到像http://static.blog.piasy.com/AdvancedRxJava/2016/10/05/subjects-part-3/所述的缓存策略
+//目前的PublishSubject行为与文章所述不同，目前的行为是当PublishSubject上游发射的数据，大于PublishSubject下游订阅者请求的数据时
+//则向下游订阅者默认抛出背压异常
 public final class PublishSubject<T> extends Subject<T, T> {
 
     final PublishSubjectState<T> state;
@@ -133,11 +136,11 @@ public final class PublishSubject<T> extends Subject<T, T> {
 
         @SuppressWarnings("unchecked")
         public PublishSubjectState() {
-            lazySet(EMPTY);
+            lazySet(EMPTY);/*初始化的时候填入一个Empty数组 add的时候对该数组进行扩容copy 进行CAS操作从而Set数组*/
         }
 
         @Override
-        public void call(Subscriber<? super T> t) {
+        public void call(Subscriber<? super T> t) {/*PublishSubject的订阅者 会call到此处引入Subscriber*/
             PublishSubjectProducer<T> pp = new PublishSubjectProducer<T>(this, t);
             t.add(pp);
             t.setProducer(pp);
@@ -302,7 +305,7 @@ public final class PublishSubject<T> extends Subject<T, T> {
                 if (r != p) {
                     produced = p + 1;
                     actual.onNext(t);
-                } else {
+                } else {/*r == p  抛出背压异常，当PublishSubject上面继续向下发射数据，且大于下面订阅者请求的数据时则抛出背压异常*/
                     unsubscribe();
                     actual.onError(new MissingBackpressureException("PublishSubject: could not emit value due to lack of requests"));
                 }

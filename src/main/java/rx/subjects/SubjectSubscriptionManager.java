@@ -55,7 +55,7 @@ import rx.subscriptions.Subscriptions;
     public void call(final Subscriber<? super T> child) {
         SubjectObserver<T> bo = new SubjectObserver<T>(child);
         addUnsubscriber(child, bo);
-        onStart.call(bo);
+        onStart.call(bo);/*订阅之前 可能用于调用订阅者的onStart方法，但是就目前来看是一个空的实现，没有执行任何动作*/
         if (!child.isUnsubscribed()) {
             if (add(bo) && child.isUnsubscribed()) {
                 remove(bo);
@@ -257,6 +257,7 @@ import rx.subscriptions.Subscriptions;
          * value and drains the queue as long as possible.
          * @param nl the type-appropriate notification lite object
          */
+//        存在竟态条件可能导致
         void emitFirst(Object n) {
             synchronized (this) {
                 if (!first || emitting) {

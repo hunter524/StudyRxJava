@@ -157,7 +157,8 @@ public final class BehaviorSubject<T> extends Subject<T, T> {
         if (last == null || state.active) {
             Object n = NotificationLite.next(v);
             for (SubjectObserver<T> bo : state.next(n)) {
-                bo.emitNext(n);
+                bo.emitNext(n);/*emitFirst 和 emitNext 同时存在的竟态条件
+                （onNext 和 subscribe 同时发生 state已经被更新为最新的元素，emitFirst获得锁发射了一次，再emitNext获得锁发射了一次，其实两次发射的是同一个元素*/
             }
         }
     }

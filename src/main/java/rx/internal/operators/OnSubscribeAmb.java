@@ -32,7 +32,7 @@ import rx.subscriptions.Subscriptions;
 public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
     //give default access instead of private as a micro-optimization
     //for access from anonymous classes below
-    final Iterable<? extends Observable<? extends T>> sources;
+    final Iterable<? extends Observable<? extends T>> sources;/*等待竞争获得胜利的原始Observable*/
 
     /**
      * Given two {@link Observable}s, propagates the one that first emits an item.
@@ -274,7 +274,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
     public static <T> OnSubscribe<T> amb(final Iterable<? extends Observable<? extends T>> sources) {
         return new OnSubscribeAmb<T>(sources);
     }
-
+//多个订阅者持有一个共同的Selection，Selection用于保存所有的订阅者和竞争获得胜利的订阅者
     static final class AmbSubscriber<T> extends Subscriber<T> {
 
         private final Subscriber<? super T> subscriber;
@@ -312,16 +312,18 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
                 subscriber.onError(e);
             }
         }
-
+//判断当前AmbSubscriber是否是 n 个中的胜利者 ，如果是胜利者才可以向真实的订阅者下发数据
+//失败者无法向真实的订阅者下发数据
         private boolean isSelected() {
-            if (chosen) {
+            if (chosen/*快速判断是否是真实的订阅者*/) {
                 return true;
             }
             if (selection.get() == this) {
                 // fast-path
                 chosen = true;
                 return true;
-            } else {
+            } else {/*此处可能并发调用了cas操作，一个成功一个失败。成功者解除其他所有订阅者的订阅 失败者也去解除其他所有失败者的订阅
+            （*所有此处更能体现出解除订阅在该出所需要保持的幂等性*)*/
                 if (selection.compareAndSet(null, this)) {
                     selection.unsubscribeOthers(this);
                     chosen = true;
@@ -334,7 +336,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
             }
         }
     }
-
+//记录amb的内部订阅者，同时记录当前所有Observable中的胜利者，
     @SuppressWarnings("serial")
     static final class Selection<T> extends AtomicReference<AmbSubscriber<T>> {
         final Collection<AmbSubscriber<T>> ambSubscribers = new ConcurrentLinkedQueue<AmbSubscriber<T>>();
@@ -371,7 +373,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
             @Override
             public void call() {
                 AmbSubscriber<T> c;
-                if ((c = selection.get()) != null) {
+                if ((c = selection.get()) != null) {/*解除订阅时 如果竞争获得胜利的发射者不为空，则需要将竞争胜利的Observable也解除订阅*/
                     // there is a single winner so we unsubscribe it
                     c.unsubscribe();
                 }
@@ -379,7 +381,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
                 // if subscriptions are occurring as this is happening then this call may not
                 // unsubscribe everything. We protect ourselves though by doing another unsubscribe check
                 // after the subscription loop below
-                unsubscribeAmbSubscribers(selection.ambSubscribers);
+                unsubscribeAmbSubscribers(selection.ambSubscribers);/*如果依旧没有谁优先发射数据，则解除所有的订阅者*/
             }
 
         }));
@@ -400,7 +402,7 @@ public final class OnSubscribeAmb<T> implements OnSubscribe<T> {
                 selection.unsubscribeOthers(c);
                 return;
             }
-            source.unsafeSubscribe(ambSubscriber);
+            source.unsafeSubscribe(ambSubscriber);/*！！！（如果所有的Observable都没有切换线程操作，则第一个Observable会竞争赢得胜利被发射给最终的订阅者）！！！*/
         }
         // while subscribing unsubscription may have occurred so we clean up after
         if (subscriber.isUnsubscribed()) {

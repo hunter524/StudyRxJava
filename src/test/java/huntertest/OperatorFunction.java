@@ -5,16 +5,14 @@ import huntertest.util.ThreadInfoUtil;
 import org.junit.Before;
 import org.junit.Test;
 import rx.*;
-import rx.functions.Action1;
-import rx.functions.Func0;
-import rx.functions.Func1;
-import rx.functions.Func2;
+import rx.functions.*;
 import rx.internal.producers.SingleProducer;
 import rx.observables.AsyncOnSubscribe;
 import rx.observables.SyncOnSubscribe;
 import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
 import rx.subjects.AsyncSubject;
+import rx.subjects.PublishSubject;
 import rx.subjects.Subject;
 
 import java.math.BigDecimal;
@@ -23,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 为了理解每个操作符的用处
@@ -662,6 +661,87 @@ public class OperatorFunction {
         System.out.println("awaitValueCount:"+awaitValueCount);/*再等 600 预期是true*/
 
         CollectionsUtil.printList(subscriber.getOnNextEvents());
+    }
+
+    @Test
+    public void testPublishSubjectBackPressure(){
+        PublishSubject<String> publishSubject = PublishSubject.create();
+        Observable.create(new Observable.OnSubscribe<String>() {
+            private Scheduler.Worker worker;
+            private int i;
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+                worker = Schedulers
+                        .io()
+                        .createWorker();
+                while (i<1025){
+                    worker.schedule(new Action0() {
+                        @Override
+                        public void call() {
+                            subscriber.onNext("next:"+(++i));
+                        }
+                    },1,TimeUnit.SECONDS);
+                    if (i == 1024){
+                        System.out.println("call onCompleted!");
+                        subscriber.onCompleted();
+                        break;
+                    }
+                    System.out.println("call onNext!");
+                }
+            }
+        }).subscribe(publishSubject);
+
+        publishSubject.subscribe(new Subscriber<String>() {
+
+
+            @Override
+            public void onStart() {
+                super.onStart();
+                request(128);
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();/*！会抛出MissingBackpressureException 请求的少于发射的数据个数，Publish会默认抛出异常！*/
+            }
+
+            @Override
+            public void onNext(String s) {
+                System.out.println("subscriber onNext:"+s);
+            }
+        });
+
+        System.out.println("Subscribed!");
+        ThreadInfoUtil.quietSleepThread(200,TimeUnit.SECONDS);
+    }
+
+    /**
+     * 同步的amb使用amb操作附谁在前面谁获得发射权
+     */
+    @Test
+    public void testSyncAmb(){
+        Observable<Integer> first = Observable
+                .just(1, 2, 3, 4, 5, 6)
+                .doOnNext(System.out::println);
+        Observable<Integer> second = Observable
+                .just(21, 22, 23, 24, 25, 26)
+                .doOnNext(System.out::println);
+
+        Observable
+                .amb(first, second)
+                .subscribe(i -> System.out.println("onNext:" + i));
+
+        System.out.println("===========second first========");
+
+        Observable
+                .amb(second, first)
+                .subscribe(i -> System.out.println("onNext:" + i));
+
     }
 
 

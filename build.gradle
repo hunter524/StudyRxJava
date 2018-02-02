@@ -23,7 +23,6 @@ repositories {
 //add by hunter 设置gradle编译版本至1.8 便于使用Lambda简化版本号
 setSourceCompatibility(JavaVersion.VERSION_1_8)
 setTargetCompatibility(JavaVersion.VERSION_1_8)
-setTargetCompatibility(JavaVersion.VERSION_1_8)
 dependencies {
     signature 'org.codehaus.mojo.signature:java16:1.1@signature'
 

@@ -8,9 +8,13 @@ import rx.Producer;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class JavaTest {
-    public static void main(String[] args) {
+
+
+    public static void main(String[] args) throws InterruptedException {
+
 //        countDownLatch();
 //        exchange();
 //        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
@@ -39,9 +43,8 @@ public class JavaTest {
 //        }).start();
 //        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
 //        System.out.println("end!");
-        testMemonry();
+//        testMemonry();
     }
-
     /**
      * 基础类型数组分配锁占用的空间
      */

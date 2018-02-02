@@ -22,6 +22,7 @@ import rx.*;
  * @param <T> the input value type
  * @param <R> the output value type
  */
+//由于Subject都继承自Observable 且由于java在子类的构造函数中调用父类的构造函数之前，严格要求不能调用非静态方法，但是Subject及其子类又需要持有OnSubscribe因此基本都使用了create静态方法构造
 public abstract class Subject<T, R> extends Observable<R> implements Observer<T> {
     protected Subject(OnSubscribe<R> onSubscribe) {
         super(onSubscribe);

@@ -36,6 +36,8 @@ import rx.internal.util.unsafe.*;
  * @param <T> the input and output value type
  * @since 1.3
  */
+//1.由于java只支持单继承,因此Subject只能继承一个Observable类,实现了一个Observer接口
+//2.由于java中子类继承父类,在调用父类的构造函数之前(super())不能调用非静态的方法,因此此处只能使用一个State去记录该处的状态
 public final class UnicastSubject<T> extends Subject<T, T> {
 
     final State<T> state;
@@ -120,7 +122,7 @@ public final class UnicastSubject<T> extends Subject<T, T> {
         super(state);
         this.state = state;
     }
-
+//UnicastSubject透明的转发上游发射的事件 给state进行处理
     @Override
     public void onNext(T t) {
         state.onNext(t);
@@ -146,6 +148,7 @@ public final class UnicastSubject<T> extends Subject<T, T> {
      *
      * @param <T> the value type
      */
+//    违反单一职责原则,(违反了多用组合少用继承的原则)但是使用继承节约了三次内存分配
     static final class State<T> extends AtomicLong implements Producer, Observer<T>, OnSubscribe<T>, Subscription {
         /** */
         private static final long serialVersionUID = -9044104859202255786L;
@@ -214,7 +217,7 @@ public final class UnicastSubject<T> extends Subject<T, T> {
                         replay();
                         return;
                     }
-                }
+                }/*单播时 如果订阅者已经订阅且处理完之前的事件序列 则后续事件序列直接下发给订阅的Subscriber*/
                 Subscriber<? super T> s = subscriber.get();
                 try {
                     s.onNext(t);
@@ -311,7 +314,7 @@ public final class UnicastSubject<T> extends Subject<T, T> {
                 if (s != null) {
                     boolean d = done;
                     boolean empty = q.isEmpty();
-                    if (checkTerminated(d, empty, delayError, s)) {
+                    if (checkTerminated(d, empty, delayError, s)) {/*如果是Subscriber解除订阅,则直接清空队列 如果是已经设置了done 但是队列中的数据还没有发送完成,则需要将队列的数据发送完成再执行结束的动作*/
                         return;
                     }
                     long r = get();
@@ -361,6 +364,8 @@ public final class UnicastSubject<T> extends Subject<T, T> {
          * Terminates the state by setting the done flag and tries to clear the queue.
          * Should be called only when the child unsubscribes
          */
+        // 18-2-1 如果正在发射就不取消订阅?最后是如何取消订阅的?
+//        会在Replay中检查标志位 然后取消订阅操作
         @Override
         public void unsubscribe() {
 
@@ -391,7 +396,7 @@ public final class UnicastSubject<T> extends Subject<T, T> {
          * @return true if this Subject reached a terminal state and the drain loop should quit
          */
         boolean checkTerminated(boolean done, boolean empty, boolean delayError, Subscriber<? super T> s) {
-            if (s.isUnsubscribed()) {
+            if (s.isUnsubscribed()) {/*首先回去检查是否已经解除订阅*/
                 queue.clear();
                 return true;
             }
