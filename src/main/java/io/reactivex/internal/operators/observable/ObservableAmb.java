@@ -20,7 +20,9 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.exceptions.Exceptions;
 import io.reactivex.internal.disposables.*;
 import io.reactivex.plugins.RxJavaPlugins;
-
+//同时支持 Observable 数组 和 迭代器
+//但是优先使用 数组 数组为空才会使用迭代器 （数组为空时也是遍历迭代器将其加入数组）
+//amb其实并不是严格的并发订阅然后发送事件
 public final class ObservableAmb<T> extends Observable<T> {
     final ObservableSource<? extends T>[] sources;
     final Iterable<? extends ObservableSource<? extends T>> sourcesIterable;
@@ -44,7 +46,7 @@ public final class ObservableAmb<T> extends Observable<T> {
                         return;
                     }
                     if (count == sources.length) {
-                        ObservableSource<? extends T>[] b = new ObservableSource[count + (count >> 2)];
+                        ObservableSource<? extends T>[] b = new ObservableSource[count + (count >> 2)];/*每次扩容原先数量1/4*/
                         System.arraycopy(sources, 0, b, 0, count);
                         sources = b;
                     }
@@ -96,15 +98,16 @@ public final class ObservableAmb<T> extends Observable<T> {
             for (int i = 0; i < len; i++) {
                 if (winner.get() != 0) {
                     return;
-                }
+                }/*如果在订阅后续Observable中已经获得了胜利者，则没必要继续去订阅剩余的Observable*/
 
                 sources[i].subscribe(as[i]);
             }
         }
-
+/*如果不限制 onNext为顺序调用，(如果并发调用，当然是不存在的)则此处会存在竟态条件，导致某一次的onNext信号会被丢失*/
+//*再一次显示了onXXX方法 需要使用队列漏 或者 发射循环 从而保证顺序调用的重要性
         public boolean win(int index) {
-            int w = winner.get();
-            if (w == 0) {
+            int w = winner.get();/*get 与 cas存在的竟态条件成立吗？*/
+            if (w == 0) {/*如果是0则使用cas处理竟态，如果成功cas的则是胜利者，然后解除所有其他订阅关系的订阅*/
                 if (winner.compareAndSet(0, index)) {
                     AmbInnerObserver<T>[] a = observers;
                     int n = a.length;
@@ -146,7 +149,7 @@ public final class ObservableAmb<T> extends Observable<T> {
 
         boolean won;
 
-        AmbInnerObserver(AmbCoordinator<T> parent, int index, Observer<? super T> actual) {
+        AmbInnerObserver(AmbCoordinator<T> parent, int index/*从1开始*/, Observer<? super T> actual) {
             this.parent = parent;
             this.index = index;
             this.actual = actual;

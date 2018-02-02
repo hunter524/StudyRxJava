@@ -3,7 +3,10 @@ package com.github.hunter524;
 import com.github.hunter524.util.ThreadInfoUtil;
 import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.TestObserver;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.UnicastSubject;
+import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -83,5 +86,19 @@ public class HelloRxjava2 {
             }
         });
         ThreadInfoUtil.quietSleepThread(2, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 与 http://static.blog.piasy.com/AdvancedRxJava/2016/10/04/subjects-part-2/ 对UnicastSubject的行为描述不符合
+     */
+    @Test
+    public void testUnicastSubject(){
+        UnicastSubject<Integer> unicastSubject = UnicastSubject.<Integer>create();
+        Observable.just(1,2,3,4,5).subscribe(unicastSubject);
+        unicastSubject.blockingIterable().iterator().forEachRemaining(System.out::println);
+//        预期 第一次订阅结束之后 第二次订阅也会抛出异常 测试通过
+        TestObserver<Integer> observer = new TestObserver<>();
+        unicastSubject.subscribe(observer);
+        observer.assertErrorMessage("Only a single observer allowed.");
     }
 }

@@ -24,6 +24,8 @@ import io.reactivex.plugins.RxJavaPlugins;
  * @param <T> the main type
  * @param <U> the other value type, ignored
  */
+//延迟订阅（delaySubscription） 与 发射延迟（delay）是存在区别的
+//    other目前的实现为ObservableTimer执行一个延迟发射的操作，在延迟发射操作结束之后再执行真正的订阅操作的订阅操作
 public final class ObservableDelaySubscriptionOther<T, U> extends Observable<T> {
     final ObservableSource<? extends T> main;
     final ObservableSource<U> other;
@@ -36,7 +38,7 @@ public final class ObservableDelaySubscriptionOther<T, U> extends Observable<T> 
     @Override
     public void subscribeActual(final Observer<? super T> child) {
         final SequentialDisposable serial = new SequentialDisposable();
-        child.onSubscribe(serial);
+        child.onSubscribe(serial);/*child实际订阅者持有的是一个 SequentialDisposable，其负责订阅关系的管理 初始延迟订阅事件的关系 和 实际订阅者的订阅关系管理*/
 
         Observer<U> otherObserver = new DelayObserver(serial, child);
 

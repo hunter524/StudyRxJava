@@ -275,7 +275,7 @@ public final class PublishSubject<T> extends Subject<T> {
                 actual.onComplete();
             }
         }
-
+//publish多播的订阅关系 解除订阅只需要简单的将订阅者从订阅数组中移除即可
         @Override
         public void dispose() {
             if (compareAndSet(false, true)) {

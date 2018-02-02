@@ -74,7 +74,7 @@ public final class BehaviorSubject<T> extends Subject<T> {
 
     final AtomicReference<Object> value;
 
-    final AtomicReference<BehaviorDisposable<T>[]> subscribers;
+    final AtomicReference<BehaviorDisposable<T>[]> subscribers;/*数组也是一种对象，数组的指针也是一种引用类型*/
 
     @SuppressWarnings("rawtypes")
     static final BehaviorDisposable[] EMPTY = new BehaviorDisposable[0];

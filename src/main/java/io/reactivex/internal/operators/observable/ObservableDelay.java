@@ -21,6 +21,11 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.internal.disposables.DisposableHelper;
 import io.reactivex.observers.SerializedObserver;
 
+//默认在Computation调度器上，也可以使用者自己指定延迟调度的调度器 以及是否延迟发射onError
+// （延迟发射并不是不发射或者放置到最后才发射，而是也与onNext延迟一定时间才去发射onError）
+
+//rxjava1 中没有是否delayerror的操作，如果遇到error rxjava1的操作为立刻回调error抛出异常
+//rxjava1 中使用的是Operator进行实现的
 public final class ObservableDelay<T> extends AbstractObservableWithUpstream<T, T> {
     final long delay;
     final TimeUnit unit;

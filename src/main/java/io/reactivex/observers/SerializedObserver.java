@@ -30,6 +30,7 @@ import io.reactivex.plugins.RxJavaPlugins;
  *
  * @param <T> the value type
  */
+//串行化onXXX
 public final class SerializedObserver<T> implements Observer<T>, Disposable {
     final Observer<? super T> actual;
     final boolean delayError;

@@ -44,6 +44,8 @@ import io.reactivex.internal.queue.SpscLinkedArrayQueue;
  * @param <T> the value type received and emitted by this Subject subclass
  * @since 2.0
  */
+//subject还没有结束 第二个订阅者 会接收到一个IllegalStateException的异常
+//如果已经结束后续的第二个订阅者会接收到一个 error 或者 completion
 public final class UnicastSubject<T> extends Subject<T> {
     /** The queue that buffers the source events. */
     final SpscLinkedArrayQueue<T> queue;

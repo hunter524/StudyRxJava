@@ -107,7 +107,7 @@ import io.reactivex.schedulers.*;
 
 //    队列漏是存在锁的竞争关系的
 //    发射者循环是非阻塞的算法执行发射操作的
-
+//    Java 不允许在调用父类构造函数之前调用非静态方法(为什么?)
 
 // TODO: 18-1-23  rxjava2 订阅关系是如何管理的？ Producer的背压管理 是如何被Subscription所代替的？
 

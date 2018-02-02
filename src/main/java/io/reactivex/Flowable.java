@@ -56,6 +56,7 @@ import io.reactivex.subscribers.*;
  * @param <T>
  *            the type of the items emitted by the Flowable
  */
+// TODO: 18-2-1 为什么大多数的缓存的大小默认都是128呢?
 public abstract class Flowable<T> implements Publisher<T> {
     /** The default buffer size. */
     static final int BUFFER_SIZE;
