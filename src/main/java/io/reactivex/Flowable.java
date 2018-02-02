@@ -2459,17 +2459,17 @@ public abstract class Flowable<T> implements Publisher<T> {
     }
 
     /**
-     * Returns a Flowable that emits a single item and then completes.
+     * Returns a Flowable that signals the given (constant reference) item and then completes.
      * <p>
      * <img width="640" height="310" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/just.png" alt="">
      * <p>
-     * To convert any object into a Publisher that emits that object, pass that object into the {@code just}
-     * method.
+     * Note that the item is taken and re-emitted as is and not computed by any means by {@code just}. Use {@link #fromCallable(Callable)}
+     * to generate a single item on demand (when {@code Subscriber}s subscribe to it).
      * <p>
-     * This is similar to the {@link #fromArray(java.lang.Object[])} method, except that {@code from} will convert
-     * an {@link Iterable} object into a Publisher that emits each of the items in the Iterable, one at a
-     * time, while the {@code just} method converts an Iterable into a Publisher that emits the entire
-     * Iterable as a single item.
+     * See the multi-parameter overloads of {@code just} to emit more than one (constant reference) items one after the other.
+     * Use {@link #fromArray(Object...)} to emit an arbitrary number of items that are known upfront.
+     * <p>
+     * To emit the items of an {@link Iterable} sequence (such as a {@link java.util.List}), use {@link #fromIterable(Iterable)}.
      * <dl>
      *  <dt><b>Backpressure:</b></dt>
      *  <dd>The operator honors backpressure from downstream.</dd>
@@ -2483,6 +2483,10 @@ public abstract class Flowable<T> implements Publisher<T> {
      *            the type of that item
      * @return a Flowable that emits {@code value} as a single item and then completes
      * @see <a href="http://reactivex.io/documentation/operators/just.html">ReactiveX operators documentation: Just</a>
+     * @see #just(Object, Object)
+     * @see #fromCallable(Callable)
+     * @see #fromArray(Object...)
+     * @see #fromIterable(Iterable)
      */
     @CheckReturnValue
     @BackpressureSupport(BackpressureKind.FULL)
@@ -11235,6 +11239,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * emitted by a {@link ConnectableFlowable} that shares a single subscription to the source Publisher,
      * replaying {@code bufferSize} notifications.
      * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
+     * <p>
      * <img width="640" height="440" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.fn.png" alt="">
      * <dl>
      *  <dt><b>Backpressure:</b></dt>
@@ -11270,6 +11277,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * Returns a Flowable that emits items that are the results of invoking a specified selector on items
      * emitted by a {@link ConnectableFlowable} that shares a single subscription to the source Publisher,
      * replaying no more than {@code bufferSize} items that were emitted within a specified time window.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="445" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.fnt.png" alt="">
      * <dl>
@@ -11309,6 +11319,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * Returns a Flowable that emits items that are the results of invoking a specified selector on items
      * emitted by a {@link ConnectableFlowable} that shares a single subscription to the source Publisher,
      * replaying no more than {@code bufferSize} items that were emitted within a specified time window.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="445" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.fnts.png" alt="">
      * <dl>
@@ -11357,6 +11370,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * Returns a Flowable that emits items that are the results of invoking a specified selector on items
      * emitted by a {@link ConnectableFlowable} that shares a single subscription to the source Publisher,
      * replaying a maximum of {@code bufferSize} items.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="440" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.fns.png" alt="">
      * <dl>
@@ -11513,6 +11529,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * an ordinary Publisher, except that it does not begin emitting items when it is subscribed to, but only
      * when its {@code connect} method is called.
      * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
+     * <p>
      * <img width="640" height="515" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.n.png" alt="">
      * <dl>
      *  <dt><b>Backpressure:</b></dt>
@@ -11542,6 +11561,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * replays at most {@code bufferSize} items that were emitted during a specified time window. A Connectable
      * Publisher resembles an ordinary Publisher, except that it does not begin emitting items when it is
      * subscribed to, but only when its {@code connect} method is called.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="515" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.nt.png" alt="">
      * <dl>
@@ -11576,6 +11598,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * that replays a maximum of {@code bufferSize} items that are emitted within a specified time window. A
      * Connectable Publisher resembles an ordinary Publisher, except that it does not begin emitting items
      * when it is subscribed to, but only when its {@code connect} method is called.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="515" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.nts.png" alt="">
      * <dl>
@@ -11618,6 +11643,9 @@ public abstract class Flowable<T> implements Publisher<T> {
      * replays at most {@code bufferSize} items emitted by that Publisher. A Connectable Publisher resembles
      * an ordinary Publisher, except that it does not begin emitting items when it is subscribed to, but only
      * when its {@code connect} method is called.
+     * <p>
+     * Note that due to concurrency requirements, {@code replay(bufferSize)} may hold strong references to more than
+     * {@code bufferSize} source emissions.
      * <p>
      * <img width="640" height="515" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/replay.ns.png" alt="">
      * <dl>
@@ -12374,11 +12402,11 @@ public abstract class Flowable<T> implements Publisher<T> {
     }
 
     /**
-     * Returns a new {@link Publisher} that multicasts (shares) the original {@link Publisher}. As long as
+     * Returns a new {@link Publisher} that multicasts (and shares a single subscription to) the original {@link Publisher}. As long as
      * there is at least one {@link Subscriber} this {@link Publisher} will be subscribed and emitting data.
      * When all subscribers have cancelled it will cancel the source {@link Publisher}.
      * <p>
-     * This is an alias for {@link #publish()}.{@link ConnectableFlowable#refCount()}.
+     * This is an alias for {@link #publish()}.{@link ConnectableFlowable#refCount() refCount()}.
      * <p>
      * <img width="640" height="510" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/publishRefCount.png" alt="">
      * <dl>
