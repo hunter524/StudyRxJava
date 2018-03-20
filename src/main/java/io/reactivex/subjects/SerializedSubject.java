@@ -101,7 +101,7 @@ import io.reactivex.plugins.RxJavaPlugins;
             }
             emitting = true;
         }
-        actual.onNext(t);
+        actual.onNext(t);/*顺序并没有乱,发射循环可以保证在发射过程中新添加的元素继续在上一个发射循环中进行发射,只有当发射循环结束之后,onNext的新的元素才会被优先进行发射*/
         emitLoop();
     }
 

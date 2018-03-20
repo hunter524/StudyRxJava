@@ -23,6 +23,7 @@ import io.reactivex.plugins.RxJavaPlugins;
 //同时支持 Observable 数组 和 迭代器
 //但是优先使用 数组 数组为空才会使用迭代器 （数组为空时也是遍历迭代器将其加入数组）
 //amb其实并不是严格的并发订阅然后发送事件
+//rxjava2 并没有继承Subscription 去管理 背压和请求
 public final class ObservableAmb<T> extends Observable<T> {
     final ObservableSource<? extends T>[] sources;
     final Iterable<? extends ObservableSource<? extends T>> sourcesIterable;
@@ -70,7 +71,8 @@ public final class ObservableAmb<T> extends Observable<T> {
             return;
         }
 
-        AmbCoordinator<T> ac = new AmbCoordinator<T>(s, count);
+        AmbCoordinator<T> ac = new AmbCoordinator<T>(s, count);/*实际的订阅者 订阅的是ac、onSubscribe得到的也是AC，并将真实的订阅者传入其中，
+        然后将最终的订阅者传入AmbInnerObserver AIO 再通过 AC去判断是否可以调用最终的订阅者去发送数据*/
         ac.subscribe(sources);
     }
 
@@ -100,13 +102,13 @@ public final class ObservableAmb<T> extends Observable<T> {
                     return;
                 }/*如果在订阅后续Observable中已经获得了胜利者，则没必要继续去订阅剩余的Observable*/
 
-                sources[i].subscribe(as[i]);
+                sources[i].subscribe(as[i]);/*订阅每一个等待竞争的Observable，*/
             }
         }
-/*如果不限制 onNext为顺序调用，(如果并发调用，当然是不存在的)则此处会存在竟态条件，导致某一次的onNext信号会被丢失*/
-//*再一次显示了onXXX方法 需要使用队列漏 或者 发射循环 从而保证顺序调用的重要性
+//此处还是会被并发调用，因为不同的AIO会并发的调用win方法，去参与竞争
+//不存在之前所认为的信号丢失问题，因为始终只有一个AIO能执行CAS成功
         public boolean win(int index) {
-            int w = winner.get();/*get 与 cas存在的竟态条件成立吗？*/
+            int w = winner.get();/*get 与 cas存在的竟态条件成立吗？ 不存在！即使获取的是被修改之前的值，会导致CAS失败，但是不会有其他任何影响*/
             if (w == 0) {/*如果是0则使用cas处理竟态，如果成功cas的则是胜利者，然后解除所有其他订阅关系的订阅*/
                 if (winner.compareAndSet(0, index)) {
                     AmbInnerObserver<T>[] a = observers;
@@ -144,6 +146,7 @@ public final class ObservableAmb<T> extends Observable<T> {
 
         private static final long serialVersionUID = -1185974347409665484L;
         final AmbCoordinator<T> parent;
+//        index从1开始，（因为winner -1 表示解除注册，0表示目前没有胜利者
         final int index;
         final Observer<? super T> actual;
 
@@ -157,6 +160,7 @@ public final class ObservableAmb<T> extends Observable<T> {
 
         @Override
         public void onSubscribe(Disposable s) {
+//            此处使用了AtomicReference 使用自己来保持订阅关系
             DisposableHelper.setOnce(this, s);
         }
 

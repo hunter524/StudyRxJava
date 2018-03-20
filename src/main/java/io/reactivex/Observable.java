@@ -9788,6 +9788,7 @@ public abstract class Observable<T> implements ObservableSource<T> {
      *         replays at most {@code bufferSize} items emitted by that ObservableSource
      * @see <a href="http://reactivex.io/documentation/operators/replay.html">ReactiveX operators documentation: Replay</a>
      */
+//    重放订阅之前的n个元素,以及订阅后的所有元素
     @CheckReturnValue
     @SchedulerSupport(SchedulerSupport.NONE)
     public final ConnectableObservable<T> replay(final int bufferSize) {
