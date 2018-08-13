@@ -29,6 +29,8 @@ import rx.plugins.RxJavaHooks;
  * <img width="640" src="https://github.com/ReactiveX/RxJava/wiki/images/rx-operators/all.png" alt="">
  * @param <T> the value type
  */
+//为什么需要一个SingleDelayedProducer？ 存在上面已经发射数据，但是下面没有请求数据的场景？
+// 因为需要考虑下游订阅了但是没有请求数据的场景（背压的处理）但是通常不会出现订阅了之后连一个数据也没法处理的场景
 public final class OperatorAll<T> implements Operator<Boolean, T> {
     final Func1<? super T, Boolean> predicate;
 

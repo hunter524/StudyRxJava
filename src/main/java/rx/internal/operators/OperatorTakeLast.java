@@ -29,6 +29,9 @@ import rx.functions.Func1;
  *
  * @param <T> the value type
  */
+//    使用Operator订阅上游的Observable,使用队列缓存数据.
+//    获取最后几个元素的操作符,只有当上游数据发射完成(onComplete)之后才可以确认上游的最后几个元素是哪个几个元素
+//    维持队列的大小为n的大小,当等于时,取出队列头部的元素poll(最older加入的元素)然后向队列尾部加入元素(offer操作)
 public final class OperatorTakeLast<T> implements Operator<T, T> {
 
     final int count;

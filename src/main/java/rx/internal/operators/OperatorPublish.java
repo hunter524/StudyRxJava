@@ -32,6 +32,15 @@ import rx.subscriptions.Subscriptions;
  * manner.
  * @param <T> the value type
  */
+//不同的订阅者订阅时并不发送数据，而是给Subscriber设置一个Producer（同时Producer持有child的订阅者）
+// connect之后使用PublishSubscriber去订阅原始的Observable然后缓存数据（当接收到数据之后，根据下游的request情况，向下游发送数据）
+// connect 时同步的获取到订阅关系，同时也是最基础的底部的订阅关系，connect通常返回void，返回的是底部的订阅关系
+// 每次订阅时获取的订阅关系是单个Subscriber对应的订阅关系，每次解除单个订阅的Subscriber只是解除自己和ConnectObservable的关系
+
+//    publish的操作符,由于connect之后subscribe只能获取到订阅之后的数据,因此当connect之后,且没有订阅者时,可以不必要缓存上游下发的数据(都缓存则会导致缓存区膨胀)
+
+//    http://static.blog.piasy.com/AdvancedRxJava/2017/03/03/connectableobservables-part-2/
+//    文中定义的Connection即为PublishSubscriber,负责向上游请求数据和协调下游请求的数据
 public final class OperatorPublish<T> extends ConnectableObservable<T> {
     /** The source observable. */
     final Observable<? extends T> source;
@@ -70,7 +79,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
                         // we won, let's use it going onwards
                         r = u;
                     }
-
+//不同的订阅者 均会调用call方法，然后给不同的Child设置不同的Producer
                     // create the backpressure-managing producer for this child
                     InnerProducer<T> inner = new InnerProducer<T>(r, child);
                     /*
@@ -168,7 +177,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
         this.source = source;
         this.current = current;
     }
-
+//取消订阅之后，可以重新再继续进行connect操作
     @Override
     public void connect(Action1<? super Subscription> connection) {
         boolean doConnect;
@@ -193,6 +202,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
             }
             // if connect() was called concurrently, only one of them should actually
             // connect to the source
+//            判断是否是第一次订阅 如果是第一次订阅则添加connect操作
             doConnect = !ps.shouldConnect.get() && ps.shouldConnect.compareAndSet(false, true);
             break; // NOPMD
         }
@@ -251,7 +261,12 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
             this.current = current;
             this.shouldConnect = new AtomicBoolean();
         }
+//构造函数结束之后把订阅关系加入SubscriptionList，解除订阅的时候去CAS把引用设置为null
+//        当上游解除订阅之后,或者使用connect传入的Action回调的Subscription解除订阅关系之后会调用到此处
+//        会调用cas将Producer的数组设置为终结状态 (这样的话,connectObservable解除订阅之后,下游的订阅数组并不能收到任何回调
 
+//        http://static.blog.piasy.com/AdvancedRxJava/2017/03/03/connectableobservables-part-2/
+//        该篇文章介绍上游取消订阅操作 下游根据预先设置的策略 发出onComplete 或者 抛出CancellationException异常
         /** Should be called after the constructor finished to setup nulling-out the current reference. */
         void init() {
             add(Subscriptions.create(new Action0() {
@@ -283,6 +298,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
                 dispatch();
             }
         }
+//        规范要求上游调用下游订阅者的OnXXX方法时必须是串行的调用,因此此处与connectObservable-part2的文章相比减少了CAS的操作
         @Override
         public void onError(Throwable e) {
             // The observer front is accessed serially as required by spec so
@@ -312,6 +328,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
          * @param producer the producer to add
          * @return true if succeeded, false otherwise
          */
+//        基于CopyOnWrite数组实现了 多个订阅者的Producer基于数组的管理(写时复制数组)
         boolean add(InnerProducer<T> producer) {
             if (producer == null) {
                 throw new NullPointerException();
@@ -419,6 +436,8 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
                              * add() will refuse to add the child producer and will trigger the
                              * creation of subscriber-to-source.
                              */
+//                            terminal结束之后保证下游的所有订阅者 都被调用onComplete方法,
+//                            并且再进行add Producer的时候会被拒绝加入
                             for (InnerProducer<?> ip : producers.getAndSet(TERMINATED)) {
                                 ip.child.onCompleted();
                             }
@@ -459,6 +478,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
          * The common serialization point of events arriving from upstream and child-subscribers
          * requesting more.
          */
+//        emitLoop 发射循环（阻塞的算法）发送数据的职责其实是在PublishSubscriber中
         void dispatch() {
             // standard construct of emitter loop (blocking)
             // if there is an emission going on, indicate that more work needs to be done
@@ -541,15 +561,18 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
 
                         // it may happen everyone has unsubscribed between here and producers.get()
                         // or we have no subscribers at all to begin with
+//                        当订阅者和解除订阅者 个数相同时,则减缓请求数据的速度,改为每次只请求一个数据
                         if (len == unsubscribed) {
                             term = terminalEvent;
                             // so let's consume a value from the queue
                             Object v = queue.poll();
                             // or terminate if there was a terminal event and the queue is empty
+//                            先判断是否已经结束 再判断队列是否为空 顺序颠倒会导致队列为空 判断 done之间队 存在竞争窗口导致加入数据
                             if (checkTerminated(term, v == null)) {
                                 skipFinal = true;
                                 return;
                             }
+//                            缓慢丢弃数据的模式
                             // otherwise, just ask for a new value
                             request(1);
                             // and retry emitting to potential new child-subscribers
@@ -599,7 +622,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
 
                         // if we did emit at least one element, request more to replenish the queue
                         if (d > 0) {
-                            request(d);
+                            request(d);/**/
                         }
                         // if we have requests but not an empty queue after emission
                         // let's try again to see if more requests/child-subscribers are
@@ -667,7 +690,7 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
          * should not cause any problems.
          */
         static final long NOT_REQUESTED = Long.MIN_VALUE / 2;
-
+//每一个Producer持有外部的PublishSubscriber 便于Producer调用PublishSubscriber的dispatch方法
         public InnerProducer(PublishSubscriber<T> parent, Subscriber<? super T> child) {
             this.parent = parent;
             this.child = child;
@@ -761,6 +784,8 @@ public final class OperatorPublish<T> extends ConnectableObservable<T> {
         public boolean isUnsubscribed() {
             return get() == UNSUBSCRIBED;
         }
+
+//        下游的Subscriber订阅OperatorPublish时,会将该Producer设置给下游的Subscriber同时
         @Override
         public void unsubscribe() {
             long r = get();

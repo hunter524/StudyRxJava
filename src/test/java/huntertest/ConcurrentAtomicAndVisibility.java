@@ -52,8 +52,35 @@ public class ConcurrentAtomicAndVisibility {
     }
     static AtomicInteger k = new AtomicInteger();
 
-    public static void main(String[] args) throws InterruptedException {
+    static volatile boolean stop = false;
+    static int inVisibleJ = 0;
 
+    public static void main(String[] args) throws InterruptedException {
+        new Thread(()->{
+            int i = 0;
+            while (i<100000){
+                System.out.print("i:"+i+"|");
+                i++;
+            }
+            stop = true;
+            System.out.println("Thread 1 InVisible J :"+inVisibleJ);
+        }).start();
+
+        new Thread(()->{
+            while (!stop){
+                inVisibleJ++;
+                System.out.print("J:"+inVisibleJ+"|");
+            }
+            System.out.println("Thread 2 InVisible J :"+inVisibleJ);
+
+        }).start();
+
+//        concurrentAndVisibilityTestCase1();
+    }
+
+
+
+    private static void concurrentAndVisibilityTestCase1() throws InterruptedException {
         Thread thread1 = new Thread(() -> {
             int i1 = 0;
             while (i1 < 1000000) {

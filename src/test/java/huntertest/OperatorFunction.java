@@ -8,17 +8,21 @@ import rx.*;
 import rx.functions.*;
 import rx.internal.producers.SingleProducer;
 import rx.observables.AsyncOnSubscribe;
+import rx.observables.ConnectableObservable;
 import rx.observables.SyncOnSubscribe;
+import rx.observers.Observers;
 import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
 import rx.subjects.AsyncSubject;
 import rx.subjects.PublishSubject;
 import rx.subjects.Subject;
+import rx.subscriptions.Subscriptions;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -619,77 +623,85 @@ public class OperatorFunction {
      * 2 + 1 + 3
      */
     @Test
-    public void create(){
+    public void create() {
         TestSubscriber<String> subscriber = new TestSubscriber<>();
-        Observable.create(new AsyncOnSubscribe<Integer, String>() {
-            @Override
-            protected Integer generateState() {
-                return 0;
-            }
+        Observable
+                .create(new AsyncOnSubscribe<Integer, String>() {
+                    @Override
+                    protected Integer generateState() {
+                        return 0;
+                    }
 
-            @Override
-            protected Integer next(Integer state, long requested, Observer<Observable<? extends String>> observer) {
-                if (state == 0){
-                    observer.onNext(Observable.just("1","2").delay(2,TimeUnit.SECONDS,Schedulers.io()));
-                }
-                else if (state == 1){
-                    observer.onNext(Observable.just("11","22").delay(1,TimeUnit.SECONDS,Schedulers.io()));
-                }
-                else if (state == 2){
-                    observer.onNext(Observable.just("111","222").delay(3,TimeUnit.SECONDS,Schedulers.io()));
-                }
-                else {
-                    observer.onCompleted();
-                }
-                return ++state;
-            }
-        }).subscribe(subscriber);
+                    @Override
+                    protected Integer next(Integer state, long requested, Observer<Observable<? extends String>> observer) {
+                        if (state == 0) {
+                            observer.onNext(Observable
+                                    .just("1", "2")
+                                    .delay(2, TimeUnit.SECONDS, Schedulers.io()));
+                        } else if (state == 1) {
+                            observer.onNext(Observable
+                                    .just("11", "22")
+                                    .delay(1, TimeUnit.SECONDS, Schedulers.io()));
+                        } else if (state == 2) {
+                            observer.onNext(Observable
+                                    .just("111", "222")
+                                    .delay(3, TimeUnit.SECONDS, Schedulers.io()));
+                        } else {
+                            observer.onCompleted();
+                        }
+                        return ++state;
+                    }
+                })
+                .subscribe(subscriber);
 //        ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
         boolean awaitValueCount = subscriber.awaitValueCount(2, 1500, TimeUnit.MILLISECONDS);
 //        预期 延时大的还是先发射，延时小的最终反而是最后到达
-        System.out.println("awaitValueCount:"+awaitValueCount);/*预期是false*/
+        System.out.println("awaitValueCount:" + awaitValueCount);/*预期是false*/
 
 //        实际只有两个值
         awaitValueCount = subscriber.awaitValueCount(4, 600, TimeUnit.MILLISECONDS);
-        System.out.println("awaitValueCount:"+awaitValueCount);/*再等 600 预期是true*/
+        System.out.println("awaitValueCount:" + awaitValueCount);/*再等 600 预期是true*/
 
 
         awaitValueCount = subscriber.awaitValueCount(4, 1000, TimeUnit.MILLISECONDS);/*3.1s四个值*/
-        System.out.println("awaitValueCount:"+awaitValueCount);/*再等 600 预期是true*/
+        System.out.println("awaitValueCount:" + awaitValueCount);/*再等 600 预期是true*/
 
         awaitValueCount = subscriber.awaitValueCount(6, 3000, TimeUnit.MILLISECONDS);/*6.1s四个值*/
-        System.out.println("awaitValueCount:"+awaitValueCount);/*再等 600 预期是true*/
+        System.out.println("awaitValueCount:" + awaitValueCount);/*再等 600 预期是true*/
 
         CollectionsUtil.printList(subscriber.getOnNextEvents());
     }
 
     @Test
-    public void testPublishSubjectBackPressure(){
+    public void testPublishSubjectBackPressure() {
         PublishSubject<String> publishSubject = PublishSubject.create();
-        Observable.create(new Observable.OnSubscribe<String>() {
-            private Scheduler.Worker worker;
-            private int i;
-            @Override
-            public void call(Subscriber<? super String> subscriber) {
-                worker = Schedulers
-                        .io()
-                        .createWorker();
-                while (i<1025){
-                    worker.schedule(new Action0() {
-                        @Override
-                        public void call() {
-                            subscriber.onNext("next:"+(++i));
+        Observable
+                .create(new Observable.OnSubscribe<String>() {
+                    private Scheduler.Worker worker;
+                    private int i;
+
+                    @Override
+                    public void call(Subscriber<? super String> subscriber) {
+                        worker = Schedulers
+                                .io()
+                                .createWorker();
+                        while (i < 1025) {
+                            worker.schedule(new Action0() {
+                                @Override
+                                public void call() {
+                                    subscriber.onNext("next:" + (++i));
+                                }
+                            }, 1, TimeUnit.SECONDS);
+                            if (i == 1024) {
+                                System.out.println("call onCompleted!");
+                                subscriber.onCompleted();
+                                break;
+                            }
+                            System.out.println("call onNext!");
                         }
-                    },1,TimeUnit.SECONDS);
-                    if (i == 1024){
-                        System.out.println("call onCompleted!");
-                        subscriber.onCompleted();
-                        break;
                     }
-                    System.out.println("call onNext!");
-                }
-            }
-        }).subscribe(publishSubject);
+                })
+                .subscribe(publishSubject);
 
         publishSubject.subscribe(new Subscriber<String>() {
 
@@ -712,19 +724,19 @@ public class OperatorFunction {
 
             @Override
             public void onNext(String s) {
-                System.out.println("subscriber onNext:"+s);
+                System.out.println("subscriber onNext:" + s);
             }
         });
 
         System.out.println("Subscribed!");
-        ThreadInfoUtil.quietSleepThread(200,TimeUnit.SECONDS);
+        ThreadInfoUtil.quietSleepThread(200, TimeUnit.SECONDS);
     }
 
     /**
      * 同步的amb使用amb操作附谁在前面谁获得发射权
      */
     @Test
-    public void testSyncAmb(){
+    public void testSyncAmb() {
         Observable<Integer> first = Observable
                 .just(1, 2, 3, 4, 5, 6)
                 .doOnNext(System.out::println);
@@ -742,6 +754,287 @@ public class OperatorFunction {
                 .amb(second, first)
                 .subscribe(i -> System.out.println("onNext:" + i));
 
+    }
+
+    /**
+     * 判断所有发射的数据是否满足这个条件
+     * all 只要有一个元素不符合条件,则发射一个false （并且解除上游的订阅关系，请求发上游不再发射数据），所有元素都符合条件，则发射一个true。
+     *      如果发射的是empty（只调用一次onComplete）则返回true
+     * any 只要一个数据符合条件，则向下游发射一个true（并且解除上游订阅关系），所有数据都不符合条件则发射一个false
+     *      如果发射empty则返回false
+     */
+    @Test
+    public void testAllAndAny() {
+//        预期只返回一个true，判断所有元素是否满足指定条件
+        just1to7
+                .doOnNext(new Action1<Integer>() {
+                    @Override
+                    public void call(Integer integer) {
+                        System.out.println("doOnNext:" + integer);
+                    }
+                })
+                .all(i -> i < 8)
+                .subscribe(System.out::println);
+//        预期只返回一个false 只要有一个元素不符合条件，则后续元素会被进行解除订阅的操作
+        just1to7
+                .doOnNext(new Action1<Integer>() {
+                    @Override
+                    public void call(Integer integer) {
+                        System.out.println("doOnNext:" + integer);
+                    }
+                })
+                .all(i -> i < 5)
+                .subscribe(System.out::println);
+//        all操作符只接收到一个Complete会发射什么数据？ 返回true
+        Observable
+                .empty()
+                .doOnNext(o-> System.out.println("doOnNext"+o))
+                .doOnCompleted(()-> System.out.println("doOnCompleted"))
+                .all(o -> {
+                    System.out.println("all:"+o);
+                    return o == null;
+                })
+                .subscribe(b-> System.out.println("onNext:"+b));
+        System.out.println("================any =============");
+        //        预期只返回一个false，判断是否存在一个元素是否满足指定条件
+        just1to7
+                .doOnNext(new Action1<Integer>() {
+                    @Override
+                    public void call(Integer integer) {
+                        System.out.println("doOnNext:" + integer);
+                    }
+                })
+                .exists(/*i -> i < 1*/i -> i > 6)
+                .subscribe(System.out::println);
+//        预期只返回一个true 只要有一个元素符合条件，则后续元素会被进行解除订阅的操作
+        just1to7
+                .doOnNext(new Action1<Integer>() {
+                    @Override
+                    public void call(Integer integer) {
+                        System.out.println("doOnNext:" + integer);
+                    }
+                })
+                .exists(i -> i < 5)
+                .subscribe(System.out::println);
+//        any操作符只接收到一个Complete会发射什么数据？ 返回false
+        Observable
+                .empty()
+                .doOnNext(o-> System.out.println("doOnNext"+o))
+                .doOnCompleted(()-> System.out.println("doOnCompleted"))
+                .exists(o -> {
+                    System.out.println("all:"+o);
+                    return o == null;
+                })
+                .subscribe(b-> System.out.println("onNext:"+b));
+    }
+
+    /**
+     * {@link rx.observables.ConnectableObservable}
+     * Publish产出ConnectableObservable之后，在connect之前订阅的Subscriber均能收到相同的完整的数据序列
+     * 在connect之后订阅的Subscriber只能接收到部分数据序列，connect之后才会触发ConnectableObservable发射数据
+     * 不同的订阅者收到的数据是相同的数据，避免了cold的Observable每次被不同的Subscriber产生的数据不同的问题
+     *
+     */
+    @Test
+    public void testPublishConnect(){
+        Observable<String> timeLocate = Observable
+                .create((Subscriber<? super String> subscriber) -> {
+                    int i = 0;
+                    while (i < 10) {
+                        subscriber.onNext("produce i:" + i + "time:" + System.currentTimeMillis());
+                        ++i;
+                    }
+                    subscriber.onCompleted();
+                });
+        ConnectableObservable<String> published = timeLocate
+                .publish();
+
+        Observable<String> skiped = published.skip(1);
+        published.zipWith(skiped,(a,b)->a+"||"+b).subscribe(System.out::println, Throwable::printStackTrace,()-> System.out.println("onCompleted!"));
+        Subscription connect1 = published.connect();
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+        connect1.unsubscribe();
+        System.out.println("connnect twice!");
+//        再次connect之后需要重新设置一个新的Subscriber，因为Subscriber调用onComplete 或者 onError之后便不会再去调用 onNext
+//        两次调用connect返回的不是相同的数据
+        published.zipWith(skiped,(a,b)->a+"||"+b).subscribe(System.out::println, Throwable::printStackTrace,()-> System.out.println("onCompleted!"));
+        Subscription connect2 = published.connect();
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+
+//        cache 1 与 cache2 重发的带有时间戳的数据是一样的
+        System.out.println("===========test cache 1=================");
+        Observable<String> cached = timeLocate.cache();
+        cached.subscribe(System.out::println);
+
+        System.out.println("===========test cache 2=================");
+        cached.subscribe(System.out::println);
+
+
+        System.out.println("==============test PublishSubscriber unSubscribe===========================");
+        ConnectableObservable<String> publish = Observable
+                .interval(0, 1, TimeUnit.SECONDS)
+                .map(s -> s + "|" + System.currentTimeMillis())
+                .publish();
+        publish.subscribe(s -> System.out.println("first unsb:" + s), e -> System.out.println("first onError:"+e.getMessage()),() -> System.out.println("first onCompleted"));
+        publish.subscribe(s -> System.out.println("second unsb:" + s),e -> System.out.println("second onError:"+e.getMessage()),() -> System.out.println("second onCompleted"));
+        Subscription[] sp1 = new Subscription[1];
+        publish.connect(sp->{
+            sp1[0] = sp;
+        });
+//        解除订阅之后两秒之间并没有发射任何数据(并且不会触发onError 或者 onComplete回调只是默默的停止向订阅者发送数据了
+//        即使重新订阅也不会再继续向下发送数据
+        ThreadInfoUtil.quietSleepThread(5,TimeUnit.SECONDS);
+        sp1[0].unsubscribe();
+        System.out.println("unSubscribed:"+System.currentTimeMillis());
+        ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+        System.out.println("reconnect:"+System.currentTimeMillis());
+        publish.connect();
+        ThreadInfoUtil.quietSleepThread(2,TimeUnit.SECONDS);
+        System.out.println("END:"+System.currentTimeMillis());
+
+
+    }
+
+    /**
+     * 预期两个Replay的观察者最终都是在订阅者线程
+     */
+    @Test
+    public void testReplay(){
+        Observable<Integer> just1to7Io = just1to7.subscribeOn(Schedulers.io());
+        ConnectableObservable<Integer> replayCp = just1to7Io
+                .replay(Schedulers.computation());
+        replayCp.subscribe((integer -> ThreadInfoUtil.printThreadInfo("cp1 next i :" + integer)));
+        replayCp.connect();
+
+        ConnectableObservable<Integer> replayIO = just1to7Io.replay();
+        replayIO
+                .observeOn(Schedulers.computation()).subscribe((integer -> ThreadInfoUtil.printThreadInfo("cp2 next i :"+integer)));
+        replayIO.connect();
+//Replay在connect之后链接依旧可以收到完整的事件序列，不使用ObservableOn切换线程，则默认在Replay指定的线程
+        replayIO.subscribe(integer -> ThreadInfoUtil.printThreadInfo("cp3 next i:"+integer));
+
+        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
+    }
+
+    /**
+     * recount 只有当最后一个解除订阅之后才去解除上游的订阅
+     */
+    // 实际上并没有解除上游的interval的订阅操作(因为使用了lift操作附,且没有把parent加入child中,导致下游解注册了并没有将上游解注册)
+    @Test
+    public void testRefConnect(){
+        Observable<Long> refCount = Observable
+                .interval(1, TimeUnit.SECONDS)
+                .map(l->{
+                    System.out.println("map l:"+l);
+                    return l;
+                })
+                .doOnUnsubscribe(()->{
+                    System.out.println("upStream unSubscribe!");
+                })
+//                .lift((Observable.Operator<Long, Long>) child -> {
+//                    Subscriber<Long> parent = new Subscriber<Long>() {
+//
+//                        @Override
+//                        public void onCompleted() {
+//                            child.onCompleted();
+//                        }
+//
+//                        @Override
+//                        public void onError(Throwable e) {
+//                            child.onError(e);
+//                        }
+//
+//                        @Override
+//                        public void onNext(Long aLong) {
+//                            child.onNext(aLong);
+//                        }
+//                    };
+//                    parent.add(Subscriptions.create(new Action0() {
+//                        @Override
+//                        public void call() {
+//                            System.out.println("parent unSubscribe!");
+//                        }
+//                    }));
+//                    child.add(parent);
+//                    return parent;
+//                })
+                .publish()
+                .refCount();
+
+        Subscription first = refCount.subscribe(l -> {
+            System.out.println("first :" + l);
+        });
+
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+
+        Subscription second = refCount.subscribe(l -> {
+            System.out.println("second :" + l);
+        });
+
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+
+        first.unsubscribe();
+        System.out.println("=====unSubscribe First:=======");
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+
+        second.unsubscribe();
+        System.out.println("=====unSubscribe Second:=======");
+        ThreadInfoUtil.quietSleepThread(3,TimeUnit.SECONDS);
+    }
+
+    /**
+     * replay ConnectObservable的策略是,当第二个订阅者请求的数量大于缓存的数量时,则继续向上游进行请求
+     */
+    @Test
+    public void replay(){
+        ConnectableObservable<Integer> replay = Observable
+                .range(1, 10)
+                .replay(1);
+        replay.connect();
+//第一个收到 1 , 2 两个数据
+        replay.subscribe(new Subscriber<Integer>() {
+            @Override
+            public void onStart() {
+                request(2);
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(Integer integer) {
+                System.out.println("first requet 2:"+integer);
+            }
+        });
+//第二个收到2,3 两个数据 (缓存的数据只有一个 2)
+        replay.subscribe(new Subscriber<Integer>() {
+            @Override
+            public void onStart() {
+                request(2);
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(Integer integer) {
+                System.out.println("second requet 2:"+integer);
+            }
+        });
     }
 
 

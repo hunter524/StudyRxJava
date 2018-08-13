@@ -53,8 +53,9 @@ import rx.subscriptions.Subscriptions;
 //    订阅时是从下游向上游调用onSubscribe的call方法
 //    调用到任意一层时可以终止向上订阅，进而直接向下发送数据
 
+//    BackPressure的理解
 //    都还没有设置 Producer，也就不会有请求，没有收到请求就发出了数据，这就是没有遵守 backpressure 的要求
-//    backpressure的要求是没有请求则就没有要求数据发射（请求多少个数据即发射多少个数据）
+//    backpressure的要求: 是没有请求则就没有要求数据发射（请求多少个数据即发射多少个数据）
 
 // TODO: 18-2-2  Obsubscribe 和 Operator 是否有明确的职责划分和定义？
 //    http://static.blog.piasy.com/AdvancedRxJava/2016/10/06/operator-internals-s-amb-ambwith/ 介绍操作附的文章将 OnSubscribeAmb也定义为操作附
@@ -7985,6 +7986,7 @@ public class Observable<T> {
      * @see <a href="http://reactivex.io/documentation/operators/backpressure.html">ReactiveX operators documentation: backpressure operators</a>
      * @since 1.3
      */
+//    背压的缓存策略 设置缓存容量 设置缓存超出时的回调 设置缓存超出时的策略(丢弃最新的 丢弃最旧的 抛出异常)
     public final Observable<T> onBackpressureBuffer(long capacity, Action0 onOverflow, BackpressureOverflow.Strategy overflowStrategy) {
         return lift(new OperatorOnBackpressureBuffer<T>(capacity, onOverflow, overflowStrategy));
     }
@@ -8063,6 +8065,7 @@ public class Observable<T> {
      * @return the source Observable modified so that it emits the most recently-received item upon request
      * @since 1.1.0
      */
+//    缓冲最新数据
     public final Observable<T> onBackpressureLatest() {
         return lift(OperatorOnBackpressureLatest.<T>instance());
     }

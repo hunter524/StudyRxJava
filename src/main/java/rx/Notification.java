@@ -19,6 +19,12 @@ package rx;
  * An object representing a notification sent to an {@link Observable}.
  * @param <T> the actual value type held by the Notification
  */
+//包装一次发射的元素 统一包装成为Notification Kind为枚举类代表onXXX几种状态
+//对onComplete提供一个哨兵对象,标记onComplete事件
+//与NotificationLite的区别:
+//    1.NotificationLite对onNext的null元素进行包装,提供一个表示null的全局哨兵,对非null元素则不进行包装
+//    2.对onComplete提供一个哨兵对象进行标记
+//    3.对onError抛出的Throwable,使用一个哨兵类进行统一的包装.
 public final class Notification<T> {
 
     private final Kind kind;

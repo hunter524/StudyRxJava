@@ -313,6 +313,7 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
 
     @SuppressWarnings("rawtypes")
     static final class ReplaySubscriber<T> extends Subscriber<T> implements Subscription {
+//        包权限缓存上游下发的数据
         /** Holds notifications from upstream. */
         final ReplayBuffer<T> buffer;
         /** Contains either an onCompleted or an onError token from upstream. */
@@ -609,6 +610,8 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
             }
         }
 
+//        onXXX 三个方法 和 setProducer方法 会调用该出进行Replay操作
+//        buffer的replay会在 开始订阅时调用 request时调用 以及该出的Replay处调用
         /**
          * Tries to replay the buffer contents to all known subscribers.
          */
@@ -659,6 +662,7 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
          * Holds an object that represents the current location in the buffer.
          * Guarded by the emitter loop.
          */
+//        记录当前发射元素的位置?(在无界缓存中用于 发射元素的下标,在有界缓存中用于记录 有界单链表的当前元素的下一个元素?)
         Object index;
         /**
          * Keeps the sum of all requested amounts.
@@ -844,6 +848,7 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
      *
      * @param <T> the value type
      */
+//    因为对订阅者的调用 onXXX 需要保证串行调用 因此该出继承ArrayList onXXX调用 add 方法是线程安全的
     static final class UnboundedReplayBuffer<T> extends ArrayList<Object> implements ReplayBuffer<T> {
         /** */
         private static final long serialVersionUID = 7063189396499112664L;
@@ -917,6 +922,7 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
                     destinationIndex++;
                     e++;
                 }
+//                index虽然是Object但是实际记录的是需要重放的下一个元素的下标位置
                 if (e != 0L) {
                     output.index = destinationIndex;
                     if (r != Long.MAX_VALUE) {
@@ -938,6 +944,7 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
     /**
      * Represents a node in a bounded replay buffer's linked list.
      */
+//    继承 自AtomicReference减少内存分配,使自己持有当前节点的下一个
     static final class Node extends AtomicReference<Node> {
         /** */
         private static final long serialVersionUID = 245354315435971818L;
@@ -970,6 +977,8 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
         long index;
 
         public BoundedReplayBuffer() {
+//            和非阻塞队列一样?为伪头结点
+//            自己继承自AtomicReference 为持有head节点的引用
             Node n = new Node(null, 0);
             tail = n;
             set(n);
@@ -996,6 +1005,8 @@ public final class OperatorReplay<T> extends ConnectableObservable<T> implements
             size--;
             // can't just move the head because it would retain the very first value
             // can't null out the head's value because of late replayers would see null
+//            只是调用设置自己的引用 来引用头的元素 其实链表中每次多保留一个头元素
+//            最直接的头元素的在链表中是无效的元素(不能获取其中的值用于发射,要保证链表中至少有一个元素的存在)
             setFirst(next);
         }
         /* test */ final void removeSome(int n) {

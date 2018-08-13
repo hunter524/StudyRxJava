@@ -28,11 +28,12 @@ import rx.plugins.RxJavaHooks;
  * an observable sequence satisfies a condition, otherwise <code>false</code>.
  * @param <T> the input value type
  */
+//exist操作附，则使用的是lift OperatorAny
 public final class OperatorAny<T> implements Operator<Boolean, T> {
     final Func1<? super T, Boolean> predicate;
     final boolean returnOnEmpty;
 
-    public OperatorAny(Func1<? super T, Boolean> predicate, boolean returnOnEmpty) {
+    public OperatorAny(Func1<? super T, Boolean> predicate, boolean returnOnEmpty/*exist传入的是false操作*/) {
         this.predicate = predicate;
         this.returnOnEmpty = returnOnEmpty;
     }

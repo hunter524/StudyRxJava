@@ -88,6 +88,8 @@ public final class ReplaySubject<T> extends Subject<T, T> {
      *          the initial buffer capacity
      * @return the created subject
      */
+//    使用create方法的原因是因为java在调用父类的构造方法之前
+//    不能调用其他非静态方法,因此无法去构造一个ReplayState,(同时也不想将State的构建交给使用者自己进行) 因此只能使用create方法构造传入
     public static <T> ReplaySubject<T> create(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("capacity > 0 required but it was " + capacity);
@@ -465,6 +467,7 @@ public final class ReplaySubject<T> extends Subject<T, T> {
 
             b.error(e);
             List<Throwable> errors = null;
+//            getAndSet只在进入循环的时候执行一次
             for (ReplayProducer<T> rp : getAndSet(TERMINATED)) {
                 try {
                     b.drain(rp);

@@ -4,6 +4,7 @@ import huntertest.util.CollectionsUtil;
 import huntertest.util.MemoryUtil;
 import huntertest.util.ThreadInfoUtil;
 import rx.Producer;
+import sun.misc.Unsafe;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -44,6 +45,11 @@ public class JavaTest {
 //        ThreadInfoUtil.quietSleepThread(1,TimeUnit.SECONDS);
 //        System.out.println("end!");
 //        testMemonry();
+        System.out.println("long array base offset:"+ Unsafe.ARRAY_LONG_BASE_OFFSET);
+        System.out.println("long array index offset:"+ Unsafe.ARRAY_LONG_INDEX_SCALE);
+//        数组的初始偏移(怀疑是存储数组的附加信息)通常为16B(64bit机器的两倍,128bit 即16B 数组会多8B,但是启用了内存压缩会减少8B index Offset 数组每一项的偏移其实是视数组的存储的每一项数据而决定 int 4B long 8B ...
+        System.out.println("int array base offset:"+ Unsafe.ARRAY_INT_BASE_OFFSET);
+        System.out.println("int array index offset:"+ Unsafe.ARRAY_INT_INDEX_SCALE);
     }
     /**
      * 基础类型数组分配锁占用的空间

@@ -28,6 +28,8 @@ import rx.subscriptions.SerialSubscription;
  *
  * @param <T> the source element type
  */
+//当有一个订阅者时触发上游发送数据,同时缓存上游发送的数据
+//再有其他订阅者时只是重放缓存的数据(每一个Producer缓存一个当前已经发射的数据的个数)
 public final class CachedObservable<T> extends Observable<T> {
 
     /** The cache and replay state. */

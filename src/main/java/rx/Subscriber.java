@@ -196,7 +196,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
         synchronized (this) {
             toRequest = requested;
             producer = p;
-            if (subscriber != null) {
+            if (subscriber != null) {/*外部传入的订阅者关系*/
                 // middle operator ... we pass through unless a request has been made
                 if (toRequest == NOT_SET) {/*request没有设置 1 to Long.MAX_VALUE 则把Producer向下游的订阅者进行传递*/
                     // we pass through to the next producer as nothing has been requested
@@ -209,7 +209,7 @@ public abstract class Subscriber<T> implements Observer<T>, Subscription {
             subscriber.setProducer(producer);
         } else {/*调用Producer去发射数据*/
             // we execute the request with whatever has been requested (or Long.MAX_VALUE)
-            if (toRequest == NOT_SET) {
+            if (toRequest == NOT_SET) {/*如果toRequest的参数还没有设置，但是设置了Producer则向Producer请求最大数据*/
                 producer.request(Long.MAX_VALUE);
             } else {
                 producer.request(toRequest);
